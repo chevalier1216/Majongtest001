@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#123c33"><meta name="description" content="青竹牌室：台灣十六張麻將，與三位電腦對手單機對局。"><title>青竹牌室｜台灣十六張麻將</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231e5140'/%3E%3Ctext x='32' y='47' text-anchor='middle' font-size='44' fill='%23efe6cc'%3E發%3C/text%3E%3C/svg%3E"><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="topbar"><div class="brand"><span class="brand-seal">竹</span><div><h1>青竹牌室</h1><span>TAIWANESE MAHJONG</span></div></div><div class="mode-label">十六張 <i></i> 單機練習</div><nav aria-label="遊戲選項"><button id="sound" class="icon-button" aria-label="開啟音效" title="音效">音效 關</button><button id="rules-button" class="quiet-button">玩法說明</button><button id="restart" class="quiet-button">重新開局</button></nav></header>
+<main>
+<div class="table-topline"><div><span class="live-mark"></span> <span id="round-label">第 1 局</span> <span class="divider">／</span> 連續練習</div><div class="table-note">不趕時間，慢慢打。</div></div>
+<section class="table" aria-label="四人麻將牌桌">
+<div class="table-grain"></div><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div>
+<section class="opponent north" id="seat2" aria-label="對家"></section>
+<section class="opponent west" id="seat3" aria-label="上家"></section>
+<section class="opponent east" id="seat1" aria-label="下家"></section>
+<div class="center-table"><div class="wind-ring"><span class="wind wn" data-seat="2">西</span><span class="wind ww" data-seat="3">北</span><span class="wind we" data-seat="1">南</span><span class="wind ws" data-seat="0">東</span><div class="wall-counter"><span>牌牆剩餘</span><strong id="wall-count">79</strong><small>保留 16 張</small></div></div><div id="last-play" class="last-play">牌局開始</div></div>
+<div class="river river-north" id="river2" aria-label="對家牌河"></div><div class="river river-west" id="river3" aria-label="上家牌河"></div><div class="river river-east" id="river1" aria-label="下家牌河"></div><div class="river river-south" id="river0" aria-label="你的牌河"></div>
+<section class="you-table"><div class="self-info" id="self-info"></div><div id="self-melds" class="self-melds"></div></section>
+</section>
+<section class="player-area" aria-label="你的手牌與操作"><div class="action-line"><div class="turn-status"><span class="status-pip"></span><span id="status" role="status" aria-live="polite">輪到你出牌</span></div><div id="actions" class="actions"></div></div><div class="hand-scroll"><div id="hand" class="hand"></div></div><div class="hand-footer"><span id="hand-tip">點一下選牌，再按「打出」</span><span id="waits"></span><span class="small-note">娛樂積分 · 無金錢交易</span></div></section>
+<div class="bottom-bar"><span>一桌四人，一副好牌。</span><details class="history"><summary>牌局紀錄</summary><ol id="history"></ol></details><span id="offline-status">所有對局運算皆在本機</span></div>
+</main>
+<dialog id="rules"><div class="dialog-heading"><span class="eyebrow">TABLE RULES</span><button class="close-dialog" aria-label="關閉玩法說明">×</button></div><h2>坐下來，打場麻將。</h2><p>你與三位電腦對手，以台灣十六張基本牌型對局。</p><dl class="rules-list"><dt>摸牌與胡牌</dt><dd>144 張牌含 8 張花。每家 16 張，莊家先取 17 張。花牌自動補牌，胡牌需「五組順子／刻子／槓子＋一對將」。</dd><dt>吃、碰、槓</dt><dd>只能吃上家的牌。胡牌優先於碰／槓，碰／槓優先於吃。提供暗槓、明槓、加槓與搶加槓；槓後自動補牌。可一炮多響。</dd><dt>操作方式</dt><dd>點手牌選取，再按「打出」；雙擊可直接出牌。鍵盤左右鍵選牌、Enter 出牌；有吃碰胡機會時，自行選擇或按「過」。不設倒數。</dd><dt>本版桌規</dt><dd>固定保留最後 16 張，槓牌不加留。放棄胡牌後須等自己再次摸牌才可接別人的牌胡。莊家胡牌或流局連莊，其他玩家胡牌則換莊。</dd><dt>練習計分</dt><dd>放銃者付每位胡牌者 100 分；自摸則三家各付 100 分。此版不計台數、連莊加台、七搶一、八仙與其他特殊花胡。花牌只展示，不加分。</dd></dl><button class="primary full close-dialog">知道了，回到牌桌</button></dialog>
+<dialog id="result"><span class="eyebrow">ROUND COMPLETE</span><h2 id="result-title"></h2><p id="result-note"></p><div id="winning-hands"></div><div id="scoreboard"></div><button id="next-round" class="primary full">下一局</button><button id="review-table" class="quiet-button full">查看牌桌</button></dialog>
+<dialog id="restart-dialog"><span class="eyebrow">NEW TABLE</span><h2>重新開始一桌？</h2><p>目前這局會結束，四人的練習積分歸零。</p><div class="dialog-actions"><button class="quiet-button close-dialog">繼續打牌</button><button id="confirm-restart" class="primary">重新開局</button></div></dialog>
+<script type="module" src="app.mjs"></script></body></html>
