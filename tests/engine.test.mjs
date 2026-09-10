@@ -62,8 +62,15 @@ test('added kong offers robbing before consuming the fourth tile',()=>{
   const g=fixture([[0,1,3,4,5,9,10,11,18,19,20,27,27,27,31,31],[2,2,2,2],[],[]],1);g.players[1].melds=[{kind:'pong',tiles:g.players[1].hand.splice(0,3),from:2}];selfKong(g,1,2);assert.equal(g.phase,'response');assert.ok(legalActions(g).some(a=>a.kind==='win'));respond(g,'win');assert.equal(g.result.rob,true);assert.deepEqual(g.result.winners,[0]);assert.equal(g.players[1].melds[0].kind,'pong');
 });
 test('self draw pays from all three opponents exactly once',()=>{
-  const g=fixture([[...ready,31],[],[],[]],0);winSelf(g,0);assert.deepEqual(g.result.deltas,[300,-100,-100,-100]);assert.throws(()=>winSelf(g,0));
+  const g=fixture([[...ready,31],[],[],[]],0);g.players[0].drawn=g.players[0].hand.at(-1).id;winSelf(g,0);assert.deepEqual(g.result.deltas,[300,-100,-100,-100]);assert.throws(()=>winSelf(g,0));
 });
 test('last 16 tiles are never drawn',()=>{
   const g=fixture([[0],[],[],[]],0);g.wall=g.wall.slice(0,16);discard(g,0,g.players[0].hand[0].id);assert.equal(g.phase,'over');assert.equal(g.result.kind,'draw');assert.equal(g.wall.length,16);
+});
+
+test('claiming a winning discard as chi cannot convert it into self draw',()=>{
+  const g=fixture([[0,1,3,4,5,9,10,11,18,19,20,27,27,27,31,31],[],[],[2]],3);
+  discard(g,3,g.players[3].hand[0].id);respond(g,'chi',[0,1,2]);
+  assert.equal(legalActions(g).some(a=>a.kind==='win'),false);
+  assert.throws(()=>winSelf(g,0));
 });

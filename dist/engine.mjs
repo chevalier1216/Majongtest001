@@ -53,7 +53,7 @@ function offers(g,from,t,rob=false){
 export function legalActions(g){
   if(g.phase==='response')return [...g.pending.offers.filter(o=>o.seat===0),{kind:'pass'}];
   if(g.phase!=='discard'||g.turn!==0)return[];
-  const p=g.players[0],a=[];if(isWinning(types(p),p.melds.length))a.push({kind:'win'});
+  const p=g.players[0],a=[];if(p.drawn!==null&&isWinning(types(p),p.melds.length))a.push({kind:'win'});
   if(g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)&&count(p,t))a.push({kind:'kong',type:t});return a;
 }
 function finish(g,winners,from,self=false,rob=false){
@@ -98,7 +98,7 @@ export function respond(g,kind,sequence=null){
   requireThat(kind==='pass'||a);if(g.pending.offers.some(o=>o.seat===0&&o.kind==='win')&&kind!=='win')g.players[0].passedWin=true;
   resolve(g,a||null);
 }
-export function winSelf(g,seat){requireThat(g.phase==='discard'&&g.turn===seat&&isWinning(types(g.players[seat]),g.players[seat].melds.length));finish(g,[seat],seat,true);}
+export function winSelf(g,seat){requireThat(g.phase==='discard'&&g.turn===seat&&g.players[seat].drawn!==null&&isWinning(types(g.players[seat]),g.players[seat].melds.length));finish(g,[seat],seat,true);}
 function completeAddedKong(g,seat,t){const p=g.players[seat],m=p.melds.find(m=>m.kind==='pong'&&m.tiles[0].type===t);m.tiles.push(...remove(p,t,1));m.kind='kong';g.pending=null;g.phase='discard';g.turn=seat;log(g,`${NAMES[seat]}加槓 ${TILE_NAMES[t]}`);take(g,seat,true);}
 export function selfKong(g,seat,t){
   requireThat(g.phase==='discard'&&g.turn===seat&&g.wall.length>16);const p=g.players[seat];
@@ -116,7 +116,7 @@ export function chooseDiscard(p){
 }
 export function aiStep(g){
   requireThat(g.phase==='discard'&&g.turn!==0);const s=g.turn,p=g.players[s];
-  if(isWinning(types(p),p.melds.length)){winSelf(g,s);return;}
+  if(p.drawn!==null&&isWinning(types(p),p.melds.length)){winSelf(g,s);return;}
   if(g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||count(p,t)&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)){selfKong(g,s,t);return;}
   discard(g,s,chooseDiscard(p).id);
 }
