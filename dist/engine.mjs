@@ -1,3 +1,4 @@
+import {scoreHand,paymentFor,STARTING_SCORE,WINDS} from './scoring.mjs';
 // Pure, deterministic Taiwan 16-tile table engine. No network or UI dependencies.
 export const NAMES=['你','阿青','小梅','老陳'];
 export const TILE_NAMES=[...Array.from({length:9},(_,i)=>`${i+1}萬`),...Array.from({length:9},(_,i)=>`${i+1}索`),...Array.from({length:9},(_,i)=>`${i+1}筒`),'東','南','西','北','白','發','中','春','夏','秋','冬','梅','蘭','竹','菊'];
@@ -16,28 +17,36 @@ export function isWinning(hand,meldCount=0){
   for(let i=0;i<34;i++)if(c[i]>=2){c[i]-=2;const ok=sets();c[i]+=2;if(ok)return true;}return false;
 }
 export function allTiles(g){return [...g.wall,...g.players.flatMap(p=>[...p.hand,...p.flowers,...p.discards,...p.melds.flatMap(m=>m.tiles)])];}
+function emit(g,kind,seat,tile=null,from=null,sequence=null){g.events.push({kind,seat,tile,from,sequence});}
+export const seatWind=(g,seat)=>(seat-g.dealer+4)%4;
+export const roundLabel=g=>`${WINDS[Math.floor(g.handNumber/4)]}風${WINDS[g.handNumber%4]}局`;
+export function chiBan(sequence,called){const banned=[called],start=sequence[0];if(called===start&&start%9<6)banned.push(start+3);if(called===start+2&&start%9>0)banned.push(start-1);return banned;}
+export function canDiscard(g,seat,id){const p=g.players[seat],t=p.hand.find(t=>t.id===id);return g.phase==='discard'&&g.turn===seat&&!!t&&!(p.banned||[]).includes(t.type);}
 function log(g,s){g.log.unshift(s);g.log=g.log.slice(0,60);g.message=s;}
 function endDraw(g){g.phase='over';g.result={kind:'draw',winners:[],text:'流局 · 本局無人胡牌',deltas:[0,0,0,0]};log(g,'牌牆剩 16 張，本局流局。');}
 function take(g,seat,back=false,initial=false){
-  const p=g.players[seat];
+  const p=g.players[seat];p.banned=[];p.drawSource=back?'kong':'wall';
   while(g.wall.length>(initial?0:16)){
     const tile=back?g.wall.pop():g.wall.shift();
-    if(tile.type>=34){p.flowers.push(tile);back=true;if(!initial)log(g,`${NAMES[seat]}補花 · ${TILE_NAMES[tile.type]}`);continue;}
-    p.hand.push(tile);sort(p);p.drawn=tile.id;p.passedWin=false;return true;
+    if(tile.type>=34){p.flowers.push(tile);back=true;if(!initial){p.drawSource='flower';emit(g,'flower',seat,tile.type);log(g,`${NAMES[seat]}補花 · ${TILE_NAMES[tile.type]}`);}continue;}
+    p.hand.push(tile);sort(p);p.drawn=tile.id;p.passedWin=false;if(!initial)p.drawCount++;return true;
   }endDraw(g);return false;
 }
 export function createGame(seed=Date.now(),previous=null){
+  requireThat(!previous?.matchOver,'本將已結束，請重新開桌');
+  const retained=previous&&(previous.result?.kind==='draw'||previous.result?.winners.includes(previous.dealer));
+  const handNumber=previous?previous.handNumber+(retained?0:1):0;
   const dealer=previous?(previous.result?.kind==='draw'||previous.result?.winners.includes(previous.dealer)?previous.dealer:(previous.dealer+1)%4):0;
-  const g={seed,dealer,round:previous?previous.round+1:1,turn:dealer,phase:'discard',wall:[],players:NAMES.map((name,i)=>({name,hand:[],melds:[],flowers:[],discards:[],score:previous?.players[i].score||0,drawn:null,passedWin:false})),log:[],pending:null,result:null,lastDiscard:null};
+  const g={seed,dealer,handNumber,streak:retained?previous.streak+1:0,matchOver:false,events:[],discardCount:0,totalCalls:0,round:previous?previous.round+1:1,turn:dealer,phase:'discard',wall:[],players:NAMES.map((name,i)=>({name,hand:[],melds:[],flowers:[],discards:[],score:previous?.players[i].score??STARTING_SCORE,drawn:null,passedWin:false,banned:[],drawCount:0,drawSource:null})),log:[],pending:null,result:null,lastDiscard:null};
   let id=0;for(let t=0;t<42;t++)for(let j=0;j<(t<34?4:1);j++)g.wall.push({id:id++,type:t});
   const random=rng(seed);for(let i=g.wall.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[g.wall[i],g.wall[j]]=[g.wall[j],g.wall[i]];}
   for(let j=0;j<16;j++)for(let d=0;d<4;d++)take(g,(dealer+d)%4,false,true);
   take(g,dealer,false,true);for(let i=0;i<4;i++)if(i!==dealer)g.players[i].drawn=null;
-  log(g,`第 ${g.round} 局開始 · ${NAMES[dealer]}坐莊`);return g;
+  log(g,`${roundLabel(g)} · ${NAMES[dealer]}坐莊${g.streak?`・連莊 ${g.streak}`:''}`);return g;
 }
 export function chiOptions(p,t){
   if(t>=27)return[];const result=[];
-  for(let start=t-2;start<=t;start++)if(start>=0&&Math.floor(start/9)===Math.floor(t/9)&&start%9<=6){const sequence=[start,start+1,start+2],needed=sequence.filter(x=>x!==t);if(needed.every(x=>count(p,x)>0))result.push(sequence);}
+  for(let start=t-2;start<=t;start++)if(start>=0&&Math.floor(start/9)===Math.floor(t/9)&&start%9<=6){const sequence=[start,start+1,start+2],needed=sequence.filter(x=>x!==t);if(needed.every(x=>count(p,x)>0)){const remaining=p.hand.map(x=>x.type);for(const t of needed)remaining.splice(remaining.indexOf(t),1);if(remaining.some(x=>!chiBan(sequence,t).includes(x)))result.push(sequence);}}
   return result;
 }
 function offers(g,from,t,rob=false){
@@ -54,22 +63,29 @@ export function legalActions(g){
   if(g.phase==='response')return [...g.pending.offers.filter(o=>o.seat===0),{kind:'pass'}];
   if(g.phase!=='discard'||g.turn!==0)return[];
   const p=g.players[0],a=[];if(p.drawn!==null&&isWinning(types(p),p.melds.length))a.push({kind:'win'});
-  if(g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)&&count(p,t))a.push({kind:'kong',type:t});return a;
+  if(p.drawn!==null&&g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)&&count(p,t))a.push({kind:'kong',type:t});return a;
 }
 function finish(g,winners,from,self=false,rob=false){
-  const deltas=[0,0,0,0];for(const w of winners){if(self){for(let s=0;s<4;s++)if(s!==w){deltas[s]-=100;deltas[w]+=100;}}else{deltas[from]-=100;deltas[w]+=100;}}
+  const tile=self?g.players[winners[0]].hand.find(t=>t.id===g.players[winners[0]].drawn):g.pending?.tile;
+  const deltas=[0,0,0,0],scores={},payments=[];
+  for(const w of winners){scores[w]=scoreHand(g,w,{self,rob,tile});for(const payer of self?[0,1,2,3].filter(s=>s!==w):[from]){const payment=paymentFor(g,w,payer,scores[w]);payments.push(payment);deltas[payer]-=payment.amount;deltas[w]+=payment.amount;}}
   for(let s=0;s<4;s++)g.players[s].score+=deltas[s];
-  g.result={kind:'win',winners,from,self,rob,deltas,tile:self?g.players[winners[0]].hand.find(t=>t.id===g.players[winners[0]].drawn):g.pending?.tile,text:`${winners.map(w=>NAMES[w]).join('、')}${self?'自摸':rob?'搶槓胡':'胡牌'}`};g.phase='over';log(g,g.result.text);
+  g.matchOver=g.handNumber===15&&!winners.includes(g.dealer);
+  g.result={kind:'win',winners,from,self,rob,deltas,tile,scores,payments,text:`${winners.map(w=>NAMES[w]).join('、')}${self?'自摸':rob?'搶槓胡':'胡牌'}`};g.phase='over';emit(g,self?'self-win':'win',winners[0],tile?.type,from);log(g,g.result.text);
 }
 function advance(g,from){g.pending=null;g.turn=(from+1)%4;g.phase='discard';if(take(g,g.turn))log(g,`${NAMES[g.turn]}摸牌`);}
 function remove(p,t,n){const out=[];for(let i=0;i<n;i++){const at=p.hand.findIndex(x=>x.type===t);requireThat(at>=0);out.push(...p.hand.splice(at,1));}return out;}
 export function discard(g,seat,id){
-  requireThat(g.phase==='discard'&&g.turn===seat);const p=g.players[seat],idx=p.hand.findIndex(t=>t.id===id);requireThat(idx>=0);
-  const [tile]=p.hand.splice(idx,1);p.drawn=null;p.discards.push(tile);g.lastDiscard={seat,tile};log(g,`${NAMES[seat]}打出 ${TILE_NAMES[tile.type]}`);
+  requireThat(canDiscard(g,seat,id),'這張牌目前不能打出（吃後禁打或非你的回合）');const p=g.players[seat],idx=p.hand.findIndex(t=>t.id===id);requireThat(idx>=0);
+  const [tile]=p.hand.splice(idx,1);p.drawn=null;p.banned=[];g.discardCount++;p.discards.push(tile);g.lastDiscard={seat,tile};log(g,`${NAMES[seat]}打出 ${TILE_NAMES[tile.type]}`);
   g.pending={from:seat,tile,offers:offers(g,seat,tile.type),rob:false};queueResponse(g);
 }
 function queueResponse(g){
-  if(g.pending.offers.some(o=>o.seat===0)){g.phase='response';return;}
+  const pending=g.pending;
+  pending.ai=[1,2,3].map(seat=>aiChoice(g,seat,pending.offers.filter(o=>o.seat===seat))).filter(Boolean);
+  const distance=seat=>(seat-pending.from+4)%4;
+  pending.offers=pending.offers.filter(o=>o.seat!==0||!pending.ai.some(a=>a.rank>o.rank||(a.rank===o.rank&&o.kind!=='win'&&distance(a.seat)<distance(0))));
+  if(pending.offers.some(o=>o.seat===0)){g.phase='response';return;}
   resolve(g,null);
 }
 function aiChoice(g,seat,options){
@@ -84,12 +100,13 @@ function aiChoice(g,seat,options){
 }
 function resolve(g,human){
   const pending=g.pending,{from,tile}=pending;const chosen=[];
-  for(let d=1;d<4;d++){const seat=(from+d)%4,opts=pending.offers.filter(o=>o.seat===seat),choice=seat===0?human:aiChoice(g,seat,opts);if(choice)chosen.push(choice);}
+  for(let d=1;d<4;d++){const seat=(from+d)%4,opts=pending.offers.filter(o=>o.seat===seat),choice=seat===0?human:pending.ai.find(o=>o.seat===seat);if(choice)chosen.push(choice);}
   const wins=chosen.filter(o=>o.kind==='win');if(wins.length){finish(g,wins.map(o=>o.seat),from,false,pending.rob);return;}
   if(pending.rob){completeAddedKong(g,from,tile.type);return;}
   chosen.sort((a,b)=>b.rank-a.rank);const chosenAction=chosen[0];if(!chosenAction){advance(g,from);return;}
   const {seat,kind,sequence}=chosenAction,p=g.players[seat];
   g.players[from].discards.pop();const own=kind==='chi'?sequence.filter(t=>t!==tile.type).flatMap(t=>remove(p,t,1)):remove(p,tile.type,kind==='kong'?3:2);
+  p.banned=kind==='chi'?chiBan(sequence,tile.type):[];g.totalCalls++;emit(g,kind,seat,tile.type,from,sequence);
   p.melds.push({kind,tiles:[...own,tile].sort((a,b)=>a.type-b.type),from});p.drawn=null;g.pending=null;g.turn=seat;g.phase='discard';
   log(g,`${NAMES[seat]}${kind==='chi'?'吃':kind==='pong'?'碰':'槓'} ${TILE_NAMES[tile.type]}`);if(kind==='kong')take(g,seat,true);
 }
@@ -99,10 +116,10 @@ export function respond(g,kind,sequence=null){
   resolve(g,a||null);
 }
 export function winSelf(g,seat){requireThat(g.phase==='discard'&&g.turn===seat&&g.players[seat].drawn!==null&&isWinning(types(g.players[seat]),g.players[seat].melds.length));finish(g,[seat],seat,true);}
-function completeAddedKong(g,seat,t){const p=g.players[seat],m=p.melds.find(m=>m.kind==='pong'&&m.tiles[0].type===t);m.tiles.push(...remove(p,t,1));m.kind='kong';g.pending=null;g.phase='discard';g.turn=seat;log(g,`${NAMES[seat]}加槓 ${TILE_NAMES[t]}`);take(g,seat,true);}
+function completeAddedKong(g,seat,t){const p=g.players[seat],m=p.melds.find(m=>m.kind==='pong'&&m.tiles[0].type===t);m.tiles.push(...remove(p,t,1));m.kind='kong';g.totalCalls++;emit(g,'added-kong',seat,t);g.pending=null;g.phase='discard';g.turn=seat;log(g,`${NAMES[seat]}加槓 ${TILE_NAMES[t]}`);take(g,seat,true);}
 export function selfKong(g,seat,t){
-  requireThat(g.phase==='discard'&&g.turn===seat&&g.wall.length>16);const p=g.players[seat];
-  if(count(p,t)===4){p.melds.push({kind:'concealed',tiles:remove(p,t,4),from:seat});log(g,`${NAMES[seat]}暗槓`);take(g,seat,true);return;}
+  requireThat(g.phase==='discard'&&g.turn===seat&&g.players[seat].drawn!==null&&g.wall.length>16);const p=g.players[seat];
+  if(count(p,t)===4){g.totalCalls++;emit(g,'concealed-kong',seat);p.melds.push({kind:'concealed',tiles:remove(p,t,4),from:seat});log(g,`${NAMES[seat]}暗槓`);take(g,seat,true);return;}
   requireThat(count(p,t)>0&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t));const tile=p.hand.find(x=>x.type===t);g.pending={from:seat,tile,offers:offers(g,seat,t,true),rob:true};queueResponse(g);
 }
 function handValue(hand){const c=Array(34).fill(0);for(const t of hand)c[t]++;let score=0;
@@ -110,14 +127,14 @@ function handValue(hand){const c=Array(34).fill(0);for(const t of hand)c[t]++;le
   return score;
 }
 export function chooseDiscard(p){
-  let best=p.hand[0],bestScore=-Infinity;
-  for(const tile of p.hand){const h=p.hand.filter(x=>x.id!==tile.id).map(t=>t.type),score=handValue(h)+(tile.type>=27?.2:Math.abs(tile.type%9-4)*.015);if(score>bestScore){bestScore=score;best=tile;}}
+  let best=null,bestScore=-Infinity;
+  for(const tile of p.hand){if((p.banned||[]).includes(tile.type))continue;const h=p.hand.filter(x=>x.id!==tile.id).map(t=>t.type),score=handValue(h)+(tile.type>=27?.2:Math.abs(tile.type%9-4)*.015);if(score>bestScore){bestScore=score;best=tile;}}
   return best;
 }
 export function aiStep(g){
   requireThat(g.phase==='discard'&&g.turn!==0);const s=g.turn,p=g.players[s];
   if(p.drawn!==null&&isWinning(types(p),p.melds.length)){winSelf(g,s);return;}
-  if(g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||count(p,t)&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)){selfKong(g,s,t);return;}
+  if(p.drawn!==null&&g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||count(p,t)&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)){selfKong(g,s,t);return;}
   discard(g,s,chooseDiscard(p).id);
 }
 export function waits(p){const hand=types(p);if(hand.length!==16-3*p.melds.length)return[];return Array.from({length:34},(_,i)=>i).filter(t=>count(p,t)<4&&isWinning([...hand,t],p.melds.length));}
