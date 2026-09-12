@@ -8,12 +8,13 @@ function tileFace(t){
 }
 function tile(t,{button=false,selected:sel=false,drawn=false,recent=false,hidden=false,operable=false}={}){
   const tag=button?'button':'span',type=t.type;
-  return `<${tag} class="tile${button&&!operable?' is-muted':''}${sel?' selected':''}${drawn?' drawn':''}${recent?' recent':''}" ${button?`data-tile="${t.id}" aria-pressed="${sel}" ${operable?'':'disabled aria-disabled="true"'}`:''} aria-label="${hidden?'暗牌':TILE_NAMES[type]}" title="${hidden?'暗牌':TILE_NAMES[type]}"><span class="face" style="${hidden?'background-position:84.695652% 10.652921%':tileFace(type)}"></span></${tag}>`;
+  const face=hidden?'<span class="face" style="background-position:84.695652% 10.652921%"></span>':type>=34?`<span class="face flower-face ${type>=38?'flower-plant':'flower-season'}"><span>${TILE_NAMES[type]}</span><small>${(type-34)%4+1}</small></span>`:`<span class="face" style="${tileFace(type)}"></span>`;
+  return `<${tag} class="tile${button&&!operable?' is-muted':''}${sel?' selected':''}${drawn?' drawn':''}${recent?' recent':''}" ${button?`data-tile="${t.id}" aria-pressed="${sel}" ${operable?'':'disabled aria-disabled="true"'}`:''} aria-label="${hidden?'暗牌':TILE_NAMES[type]}" title="${hidden?'暗牌':TILE_NAMES[type]}">${face}</${tag}>`;
 }
 function badge(seat){const p=game.players[seat],wind=WINDS[seatWind(game,seat)];return `<div class="player-badge ${game.turn===seat&&game.phase!=='over'?'active':''}"><span class="avatar">${seat===0?'我':NAMES[seat].slice(-1)}</span><div><div class="player-name">${NAMES[seat]}<span class="seat-label">${wind}家</span>${seat===game.dealer?'<span class="dealer">莊</span>':''}</div><div class="score">${p.score.toLocaleString()} 分</div></div></div>`;}
 function melds(seat){return game.players[seat].melds.map(m=>`<div class="meld" title="${m.kind==='concealed'?'暗槓':m.kind==='chi'?'吃':m.kind==='pong'?'碰':'槓'}">${m.tiles.map((t,i)=>tile(t,{hidden:m.kind==='concealed'&&seat!==0&&game.phase!=='over'||m.kind==='concealed'&&(i===0||i===3)&&game.phase!=='over'})).join('')}</div>`).join('');}
-function publicTiles(seat){const p=game.players[seat];return melds(seat)+(p.flowers.length?`<div class="meld flower-meld" title="補花：${p.flowers.map(t=>TILE_NAMES[t.type]).join('、')}">${p.flowers.map(t=>tile(t)).join('')}</div>`:'');}
-function flowerLabel(seat){const p=game.players[seat],wind=seatWind(game,seat),items=flowerItems(game,seat),tai=items.reduce((n,x)=>n+x.tai,0);return `<div class="flowers" title="${items.map(x=>`${x.name} ${x.tai}台`).join('、')||'目前無花台'}">${p.flowers.length?`${p.flowers.length} 張花`:'無花'} <b>花 ${tai} 台</b></div><div class="flower-target">正花：${FLOWERS[wind]}・${FLOWERS[wind+4]}</div>`;}
+function publicTiles(seat){const p=game.players[seat],items=flowerItems(game,seat),tai=items.reduce((n,x)=>n+x.tai,0);return melds(seat)+(p.flowers.length?`<div class="meld flower-meld" title="補花：${p.flowers.map(t=>TILE_NAMES[t.type]).join('、')}">${p.flowers.map(t=>tile(t)).join('')}<span class="flower-tai" title="${items.map(x=>`${x.name} ${x.tai}台`).join('、')||'目前無花台'}">花 ${tai} 台</span></div>`:'');}
+function flowerLabel(seat){const wind=seatWind(game,seat);return `<div class="flower-target">正花：${FLOWERS[wind]}・${FLOWERS[wind+4]}</div>`;}
 
 function render(){
   $('#restart').disabled=animating;
@@ -49,7 +50,7 @@ function playEvents(events){
   const event=events.shift();if(!event){animating=false;$('#call-notice').hidden=true;render();schedule();return;}
   const labels={chi:'吃',pong:'碰',kong:'明槓','concealed-kong':'暗槓','added-kong':'加槓',flower:'補花',win:'胡牌','self-win':'自摸'};
   const notice=$('#call-notice');notice.hidden=false;
-  notice.innerHTML=`<div class="call-card"><span class="call-player">${NAMES[event.seat]}</span><strong>${labels[event.kind]}</strong><div class="call-tiles">${event.tile===null||event.tile===undefined?'':event.kind==='flower'?`<span class="flower-call">${TILE_NAMES[event.tile]}</span>`:(event.sequence||[event.tile]).map(type=>tile({type})).join('')}</div><p>${event.from!==null&&event.from!==event.seat?`接走${NAMES[event.from]}的 ${TILE_NAMES[event.tile]}`:event.kind==='flower'?'亮花後從牌尾補牌':event.kind.includes('kong')?'槓牌後從牌尾補牌':''}</p></div>`;
+  notice.innerHTML=`<div class="call-card"><span class="call-player">${NAMES[event.seat]}</span><strong>${labels[event.kind]}</strong><div class="call-tiles">${event.tile===null||event.tile===undefined?'':(event.sequence||[event.tile]).map(type=>tile({type})).join('')}</div><p>${event.from!==null&&event.from!==event.seat?`接走${NAMES[event.from]}的 ${TILE_NAMES[event.tile]}`:event.kind==='flower'?'亮花後從牌尾補牌':event.kind.includes('kong')?'槓牌後從牌尾補牌':''}</p></div>`;
   eventTimer=setTimeout(next,1400);
  };next();
 }

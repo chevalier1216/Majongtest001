@@ -30,6 +30,11 @@ test('claim notice pauses input for 1400ms, preserves tiles and resumes afterwar
  const [id,timer]=[...u.clock].find(([,t])=>t.ms===1400);u.clock.delete(id);timer.fn();
  assert.equal(u.nodes.get('#call-notice').hidden,true);assert.equal(u.run('animating'),false);assert.doesNotMatch(u.nodes.get('#hand').innerHTML,/is-muted/);
 });
+test('flower call notice uses the same face-up tile as the public area',()=>{
+ const u=ui();u.run("playEvents([{kind:'flower',seat:0,tile:40,from:0}])");
+ assert.match(u.nodes.get('#call-notice').innerHTML,/flower-face/);
+ assert.match(u.nodes.get('#call-notice').innerHTML,/>竹</);
+});
 test('reaction prompt and its available actions render together on the table',()=>{
  const u=ui();assert.ok(u.nodes.has('#reaction-panel'));assert.ok(u.nodes.has('#reaction-message'));assert.ok(u.nodes.has('#reaction-actions'));
  u.run("game.phase='response';game.pending={from:3,tile:{id:999,type:10},offers:[{seat:0,kind:'pong',rank:2,type:10}],rob:false,ai:[]};render()");
@@ -43,9 +48,16 @@ test('flowers render as face-up tiles in every seat public area',()=>{
  const u=ui();u.run("for(let seat=0;seat<4;seat++)game.players[seat].flowers=[{id:200+seat,type:34+seat},{id:210+seat,type:38+seat}];render()");
  assert.equal((u.nodes.get('#self-melds').innerHTML.match(/flower-meld/g)||[]).length,1);
  assert.equal((u.nodes.get('#self-melds').innerHTML.match(/class=\"tile/g)||[]).length,2);
+ assert.equal((u.nodes.get('#self-melds').innerHTML.match(/flower-face/g)||[]).length,2);
+ assert.match(u.nodes.get('#self-melds').innerHTML,/>春</);
+ assert.match(u.nodes.get('#self-melds').innerHTML,/>梅</);
+ assert.match(u.nodes.get('#self-melds').innerHTML,/flower-tai/);
+ assert.doesNotMatch(u.nodes.get('#self-info').innerHTML,/class=\"flowers\"/);
  for(let seat=1;seat<4;seat++){
   const html=u.nodes.get('#seat'+seat).innerHTML;
   assert.equal((html.match(/flower-meld/g)||[]).length,1,`seat ${seat} flower group`);
   assert.equal((html.match(/class=\"tile/g)||[]).length,2,`seat ${seat} flower tiles`);
+  assert.match(html,/flower-tai/,`seat ${seat} flower tai stays with public tiles`);
+  assert.doesNotMatch(html,/class=\"flowers\"/,`seat ${seat} has no text-only flower list`);
  }
 });

@@ -102,6 +102,7 @@ dialog{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-
 .revealed-hand{gap:2px}.revealed-hand .tile{--tile-w:18px}
 .opponent-melds{margin:0;max-height:none}.opponent-melds .tile{--tile-w:18px}
 .flower-meld{border-inline-start:1px solid #d6b97988;padding-inline-start:6px}
+.flower-tai{align-self:center;margin-inline-start:4px;color:#e5c17b;font-size:12px;line-height:1.2;white-space:nowrap}
 .self-melds{align-items:flex-end;flex-wrap:nowrap;max-width:62%;overflow-x:auto;overflow-y:hidden;padding:3px;scrollbar-width:thin}
 .self-melds .flower-meld{flex:none}
 
@@ -125,6 +126,7 @@ dialog{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-
 .west .opponent-melds .face,.west .revealed-hand .face{transform:translate(-50%,-50%) rotate(90deg)}
 .east .opponent-melds .face,.east .revealed-hand .face{transform:translate(-50%,-50%) rotate(-90deg)}
 .west .flower-meld,.east .flower-meld{border-inline-start:0;border-top:1px solid #d6b97988;padding-inline-start:0;padding-top:5px}
+.west .flower-tai,.east .flower-tai{margin:4px 0 0;writing-mode:horizontal-tb}
 
 /* Reaction choices occupy the unused central table zone, without a full-table mask. */
 .reaction-panel{position:absolute;left:50%;top:51%;transform:translate(-50%,-50%);z-index:7;width:clamp(270px,42%,440px);padding:12px 14px;border:2px solid #d6b979;border-radius:10px;background:#142f27f5;box-shadow:0 10px 28px #0008;text-align:center}
