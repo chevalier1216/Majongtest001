@@ -37,7 +37,7 @@ export function createGame(seed=Date.now(),previous=null){
   const retained=previous&&(previous.result?.kind==='draw'||previous.result?.winners.includes(previous.dealer));
   const handNumber=previous?previous.handNumber+(retained?0:1):0;
   const dealer=previous?(previous.result?.kind==='draw'||previous.result?.winners.includes(previous.dealer)?previous.dealer:(previous.dealer+1)%4):0;
-  const g={seed,dealer,handNumber,streak:retained?previous.streak+1:0,matchOver:false,events:[],discardCount:0,totalCalls:0,round:previous?previous.round+1:1,turn:dealer,phase:'discard',wall:[],players:NAMES.map((name,i)=>({name,hand:[],melds:[],flowers:[],discards:[],score:previous?.players[i].score??STARTING_SCORE,drawn:null,passedWin:false,banned:[],drawCount:0,drawSource:null})),log:[],pending:null,result:null,lastDiscard:null};
+  const g={seed,dealer,handNumber,streak:retained?previous.streak+1:0,matchOver:false,events:[],discardCount:0,totalCalls:0,round:previous?previous.round+1:1,turn:dealer,phase:'discard',wall:[],players:NAMES.map((name,i)=>({name,hand:[],melds:[],flowers:[],discards:[],score:previous?.players[i].score??STARTING_SCORE,drawn:null,passedWin:false,banned:[],drawCount:0,drawSource:null,kongChain:null})),log:[],pending:null,result:null,lastDiscard:null};
   let id=0;for(let t=0;t<42;t++)for(let j=0;j<(t<34?4:1);j++)g.wall.push({id:id++,type:t});
   const random=rng(seed);for(let i=g.wall.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[g.wall[i],g.wall[j]]=[g.wall[j],g.wall[i]];}
   for(let j=0;j<16;j++)for(let d=0;d<4;d++)take(g,(dealer+d)%4,false,true);
@@ -54,7 +54,7 @@ function offers(g,from,t,rob=false){
     const seat=(from+d)%4,p=g.players[seat];
     if(!p.passedWin&&isWinning([...types(p),t],p.melds.length))list.push({seat,kind:'win',rank:3});
     if(rob)continue;
-    if(count(p,t)>=3&&g.wall.length>16)list.push({seat,kind:'kong',rank:2,type:t});
+    if(d!==1&&count(p,t)>=3&&g.wall.length>16)list.push({seat,kind:'kong',rank:2,type:t});
     if(count(p,t)>=2)list.push({seat,kind:'pong',rank:2,type:t});
     if(d===1)for(const sequence of chiOptions(p,t))list.push({seat,kind:'chi',rank:1,sequence});
   }return list;
@@ -62,9 +62,10 @@ function offers(g,from,t,rob=false){
 export function legalActions(g){
   if(g.phase==='response')return [...g.pending.offers.filter(o=>o.seat===0),{kind:'pass'}];
   if(g.phase!=='discard'||g.turn!==0)return[];
-  const p=g.players[0],a=[];if(p.drawn!==null&&isWinning(types(p),p.melds.length))a.push({kind:'win'});
+  const p=g.players[0],a=[];if(canWinSelf(p))a.push({kind:'win'});
   if(p.drawn!==null&&g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)&&count(p,t))a.push({kind:'kong',type:t});return a;
 }
+function canWinSelf(p){return p.drawn!==null&&p.kongChain!=='needs-followup'&&isWinning(types(p),p.melds.length);}
 function finish(g,winners,from,self=false,rob=false){
   const tile=self?g.players[winners[0]].hand.find(t=>t.id===g.players[winners[0]].drawn):g.pending?.tile;
   const deltas=[0,0,0,0],scores={},payments=[];
@@ -77,8 +78,9 @@ function advance(g,from){g.pending=null;g.turn=(from+1)%4;g.phase='discard';if(t
 function remove(p,t,n){const out=[];for(let i=0;i<n;i++){const at=p.hand.findIndex(x=>x.type===t);requireThat(at>=0);out.push(...p.hand.splice(at,1));}return out;}
 export function discard(g,seat,id){
   requireThat(canDiscard(g,seat,id),'這張牌目前不能打出（吃後禁打或非你的回合）');const p=g.players[seat],idx=p.hand.findIndex(t=>t.id===id);requireThat(idx>=0);
-  const [tile]=p.hand.splice(idx,1);p.drawn=null;p.banned=[];g.discardCount++;p.discards.push(tile);g.lastDiscard={seat,tile};log(g,`${NAMES[seat]}打出 ${TILE_NAMES[tile.type]}`);
-  g.pending={from:seat,tile,offers:offers(g,seat,tile.type),rob:false};queueResponse(g);
+  const [tile]=p.hand.splice(idx,1);p.drawn=null;p.banned=[];p.kongChain=null;g.discardCount++;p.discards.push(tile);g.lastDiscard={seat,tile};log(g,`${NAMES[seat]}打出 ${TILE_NAMES[tile.type]}`);
+  const reactionOffers=offers(g,seat,tile.type);
+  g.pending={from:seat,tile,offers:reactionOffers,rob:false,kongOfferSeats:reactionOffers.filter(o=>o.kind==='kong').map(o=>o.seat)};queueResponse(g);
 }
 function queueResponse(g){
   const pending=g.pending;
@@ -101,13 +103,13 @@ function aiChoice(g,seat,options){
 function resolve(g,human){
   const pending=g.pending,{from,tile}=pending;const chosen=[];
   for(let d=1;d<4;d++){const seat=(from+d)%4,opts=pending.offers.filter(o=>o.seat===seat),choice=seat===0?human:pending.ai.find(o=>o.seat===seat);if(choice)chosen.push(choice);}
-  const wins=chosen.filter(o=>o.kind==='win');if(wins.length){finish(g,wins.map(o=>o.seat),from,false,pending.rob);return;}
-  if(pending.rob){completeAddedKong(g,from,tile.type);return;}
+  const wins=chosen.filter(o=>o.kind==='win');if(wins.length){const robbed=pending.rob||(pending.kongOfferSeats||[]).some(seat=>!wins.some(w=>w.seat===seat));finish(g,wins.map(o=>o.seat),from,false,robbed);return;}
+  if(pending.rob){completeSelfKong(g,from,tile.type,pending.kongKind);return;}
   chosen.sort((a,b)=>b.rank-a.rank);const chosenAction=chosen[0];if(!chosenAction){advance(g,from);return;}
   const {seat,kind,sequence}=chosenAction,p=g.players[seat];
   g.players[from].discards.pop();const own=kind==='chi'?sequence.filter(t=>t!==tile.type).flatMap(t=>remove(p,t,1)):remove(p,tile.type,kind==='kong'?3:2);
   p.banned=kind==='chi'?chiBan(sequence,tile.type):[];g.totalCalls++;emit(g,kind,seat,tile.type,from,sequence);
-  p.melds.push({kind,tiles:[...own,tile].sort((a,b)=>a.type-b.type),from});p.drawn=null;g.pending=null;g.turn=seat;g.phase='discard';
+  p.melds.push({kind,tiles:[...own,tile].sort((a,b)=>a.type-b.type),from});p.drawn=null;if(kind==='kong')p.kongChain='needs-followup';g.pending=null;g.turn=seat;g.phase='discard';
   log(g,`${NAMES[seat]}${kind==='chi'?'吃':kind==='pong'?'碰':'槓'} ${TILE_NAMES[tile.type]}`);if(kind==='kong')take(g,seat,true);
 }
 export function respond(g,kind,sequence=null){
@@ -115,12 +117,22 @@ export function respond(g,kind,sequence=null){
   requireThat(kind==='pass'||a);if(g.pending.offers.some(o=>o.seat===0&&o.kind==='win')&&kind!=='win')g.players[0].passedWin=true;
   resolve(g,a||null);
 }
-export function winSelf(g,seat){requireThat(g.phase==='discard'&&g.turn===seat&&g.players[seat].drawn!==null&&isWinning(types(g.players[seat]),g.players[seat].melds.length));finish(g,[seat],seat,true);}
-function completeAddedKong(g,seat,t){const p=g.players[seat],m=p.melds.find(m=>m.kind==='pong'&&m.tiles[0].type===t);m.tiles.push(...remove(p,t,1));m.kind='kong';g.totalCalls++;emit(g,'added-kong',seat,t);g.pending=null;g.phase='discard';g.turn=seat;log(g,`${NAMES[seat]}加槓 ${TILE_NAMES[t]}`);take(g,seat,true);}
+export function winSelf(g,seat){requireThat(g.phase==='discard'&&g.turn===seat&&canWinSelf(g.players[seat]));finish(g,[seat],seat,true);}
+function completeSelfKong(g,seat,t,kind){
+  const p=g.players[seat],followsClaim=p.kongChain==='needs-followup';
+  if(kind==='added'){
+    const m=p.melds.find(m=>m.kind==='pong'&&m.tiles[0].type===t);m.tiles.push(...remove(p,t,1));m.kind='kong';emit(g,'added-kong',seat,t);log(g,`${NAMES[seat]}加槓 ${TILE_NAMES[t]}`);
+  }else{
+    p.melds.push({kind:'concealed',tiles:remove(p,t,4),from:seat});emit(g,'concealed-kong',seat);log(g,`${NAMES[seat]}暗槓`);
+  }
+  g.totalCalls++;g.pending=null;g.phase='discard';g.turn=seat;if(followsClaim)p.kongChain='eligible';take(g,seat,true);
+}
 export function selfKong(g,seat,t){
   requireThat(g.phase==='discard'&&g.turn===seat&&g.players[seat].drawn!==null&&g.wall.length>16);const p=g.players[seat];
-  if(count(p,t)===4){g.totalCalls++;emit(g,'concealed-kong',seat);p.melds.push({kind:'concealed',tiles:remove(p,t,4),from:seat});log(g,`${NAMES[seat]}暗槓`);take(g,seat,true);return;}
-  requireThat(count(p,t)>0&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t));const tile=p.hand.find(x=>x.type===t);g.pending={from:seat,tile,offers:offers(g,seat,t,true),rob:true};queueResponse(g);
+  const concealed=count(p,t)===4,added=count(p,t)>0&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t);requireThat(concealed||added);
+  const kind=concealed?'concealed':'added',tile=p.hand.find(x=>x.type===t);
+  if(kind==='concealed'&&p.kongChain!=='needs-followup'){completeSelfKong(g,seat,t,kind);return;}
+  g.pending={from:seat,tile,offers:offers(g,seat,t,true),rob:true,kongKind:kind};queueResponse(g);
 }
 function handValue(hand){const c=Array(34).fill(0);for(const t of hand)c[t]++;let score=0;
   for(let t=0;t<34;t++)if(c[t]){score+=c[t]>=3?9:c[t]===2?4:0;if(t<27){if(t%9<8)score+=Math.min(c[t],c[t+1])*2;if(t%9<7)score+=Math.min(c[t],c[t+2]);}}
@@ -133,7 +145,7 @@ export function chooseDiscard(p){
 }
 export function aiStep(g){
   requireThat(g.phase==='discard'&&g.turn!==0);const s=g.turn,p=g.players[s];
-  if(p.drawn!==null&&isWinning(types(p),p.melds.length)){winSelf(g,s);return;}
+  if(canWinSelf(p)){winSelf(g,s);return;}
   if(p.drawn!==null&&g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||count(p,t)&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)){selfKong(g,s,t);return;}
   discard(g,s,chooseDiscard(p).id);
 }
