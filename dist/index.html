@@ -4,12 +4,13 @@
 <header class="topbar"><div class="brand"><span class="brand-seal">竹</span><div><h1>青竹牌室</h1><span>TAIWANESE MAHJONG</span></div></div><div class="mode-label">十六張 <i></i> 單機練習</div><nav aria-label="遊戲選項"><button id="sound" class="icon-button" aria-label="開啟音效" title="音效">音效 關</button><button id="rules-button" class="quiet-button">玩法說明</button><button id="restart" class="quiet-button">重新開局</button></nav></header>
 <main>
 <div class="table-topline"><div><span class="live-mark"></span> <span id="round-label">第 1 局</span> <span class="divider">／</span> <span id="dealer-run"></span></div><div class="table-note">底 5,000 ／ 台 500</div></div>
-<section class="table" aria-label="四人麻將牌桌">
+<section class="table" id="table" aria-label="四人麻將牌桌">
 <div class="table-grain"></div><div class="corner corner-tl"></div><div class="corner corner-tr"></div><div class="corner corner-bl"></div><div class="corner corner-br"></div>
 <section class="opponent north" id="seat2" aria-label="對家"></section>
 <section class="opponent west" id="seat3" aria-label="上家"></section>
 <section class="opponent east" id="seat1" aria-label="下家"></section>
 <div class="center-table"><div class="wind-ring"><span class="wind wn" data-seat="2">西</span><span class="wind ww" data-seat="3">北</span><span class="wind we" data-seat="1">南</span><span class="wind ws" data-seat="0">東</span><div class="wall-counter"><span>牌牆剩餘</span><strong id="wall-count">79</strong><small>保留 16 張</small></div></div><div id="last-play" class="last-play">牌局開始</div></div>
+<section id="reaction-panel" class="reaction-panel" aria-label="接牌選擇" aria-live="assertive" hidden><strong id="reaction-message"></strong><div id="reaction-actions" class="reaction-actions"></div></section>
 <div class="river river-north" id="river2" aria-label="對家牌河"></div><div class="river river-west" id="river3" aria-label="上家牌河"></div><div class="river river-east" id="river1" aria-label="下家牌河"></div><div class="river river-south" id="river0" aria-label="你的牌河"></div>
 <section class="you-table"><div class="self-info" id="self-info"></div><div id="self-melds" class="self-melds"></div></section>
 </section>

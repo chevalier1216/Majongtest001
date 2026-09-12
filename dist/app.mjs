@@ -8,18 +8,19 @@ function tileFace(t){
 }
 function tile(t,{button=false,selected:sel=false,drawn=false,recent=false,hidden=false,operable=false}={}){
   const tag=button?'button':'span',type=t.type;
-  return `<${tag} class="tile${operable?'':' is-muted'}${sel?' selected':''}${drawn?' drawn':''}${recent?' recent':''}" ${button?`data-tile="${t.id}" aria-pressed="${sel}" ${operable?'':'disabled aria-disabled="true"'}`:''} aria-label="${hidden?'暗牌':TILE_NAMES[type]}" title="${hidden?'暗牌':TILE_NAMES[type]}"><span class="face" style="${hidden?'background-position:84.695652% 10.652921%':tileFace(type)}"></span></${tag}>`;
+  return `<${tag} class="tile${button&&!operable?' is-muted':''}${sel?' selected':''}${drawn?' drawn':''}${recent?' recent':''}" ${button?`data-tile="${t.id}" aria-pressed="${sel}" ${operable?'':'disabled aria-disabled="true"'}`:''} aria-label="${hidden?'暗牌':TILE_NAMES[type]}" title="${hidden?'暗牌':TILE_NAMES[type]}"><span class="face" style="${hidden?'background-position:84.695652% 10.652921%':tileFace(type)}"></span></${tag}>`;
 }
 function badge(seat){const p=game.players[seat],wind=WINDS[seatWind(game,seat)];return `<div class="player-badge ${game.turn===seat&&game.phase!=='over'?'active':''}"><span class="avatar">${seat===0?'我':NAMES[seat].slice(-1)}</span><div><div class="player-name">${NAMES[seat]}<span class="seat-label">${wind}家</span>${seat===game.dealer?'<span class="dealer">莊</span>':''}</div><div class="score">${p.score.toLocaleString()} 分</div></div></div>`;}
 function melds(seat){return game.players[seat].melds.map(m=>`<div class="meld" title="${m.kind==='concealed'?'暗槓':m.kind==='chi'?'吃':m.kind==='pong'?'碰':'槓'}">${m.tiles.map((t,i)=>tile(t,{hidden:m.kind==='concealed'&&seat!==0&&game.phase!=='over'||m.kind==='concealed'&&(i===0||i===3)&&game.phase!=='over'})).join('')}</div>`).join('');}
-function flowerLabel(seat){const p=game.players[seat],wind=seatWind(game,seat),items=flowerItems(game,seat),tai=items.reduce((n,x)=>n+x.tai,0);return `<div class="flowers" title="${items.map(x=>`${x.name} ${x.tai}台`).join('、')||'目前無花台'}">${p.flowers.length?p.flowers.map(t=>`<span class="${(t.type-34)%4===wind?'matched-flower':''}">${TILE_NAMES[t.type]}</span>`).join(' '):'無花'} <b>花 ${tai} 台</b></div><div class="flower-target">正花：${FLOWERS[wind]}・${FLOWERS[wind+4]}</div>`;}
+function publicTiles(seat){const p=game.players[seat];return melds(seat)+(p.flowers.length?`<div class="meld flower-meld" title="補花：${p.flowers.map(t=>TILE_NAMES[t.type]).join('、')}">${p.flowers.map(t=>tile(t)).join('')}</div>`:'');}
+function flowerLabel(seat){const p=game.players[seat],wind=seatWind(game,seat),items=flowerItems(game,seat),tai=items.reduce((n,x)=>n+x.tai,0);return `<div class="flowers" title="${items.map(x=>`${x.name} ${x.tai}台`).join('、')||'目前無花台'}">${p.flowers.length?`${p.flowers.length} 張花`:'無花'} <b>花 ${tai} 台</b></div><div class="flower-target">正花：${FLOWERS[wind]}・${FLOWERS[wind+4]}</div>`;}
 
 function render(){
   $('#restart').disabled=animating;
   $('#round-label').textContent=roundLabel(game);$('#dealer-run').textContent=`${WINDS[seatWind(game,0)]}家是你 · ${game.streak?`連莊 ${game.streak}（莊台 ${1+2*game.streak}）`:'莊台 1'}`;$('#wall-count').textContent=game.wall.length;
-  for(let s=1;s<4;s++)$('#seat'+s).innerHTML=badge(s)+(game.phase==='over'?`<div class="opponent-melds">${game.players[s].hand.map(t=>tile(t)).join('')}</div>`:`<div class="backs" aria-label="${game.players[s].hand.length} 張暗牌">${'<span class="back"></span>'.repeat(game.players[s].hand.length)}</div>`)+`<div class="opponent-melds">${melds(s)}</div>`+flowerLabel(s);
+  for(let s=1;s<4;s++){const hand=game.phase==='over'?`<div class="revealed-hand">${game.players[s].hand.map(t=>tile(t)).join('')}</div>`:`<div class="backs" aria-label="${game.players[s].hand.length} 張暗牌">${'<span class="back"></span>'.repeat(game.players[s].hand.length)}</div>`;$('#seat'+s).innerHTML=badge(s)+`<div class="opponent-zones">${hand}<div class="opponent-melds">${publicTiles(s)}</div></div>`+flowerLabel(s);}
   for(let s=0;s<4;s++){$('#river'+s).innerHTML=game.players[s].discards.map(t=>tile(t,{recent:game.lastDiscard?.tile.id===t.id})).join('');const wind=document.querySelector(`[data-seat="${s}"]`);wind.textContent=['東','南','西','北'][(s-game.dealer+4)%4];wind.classList.toggle('active',s===game.turn&&game.phase!=='over');}
-  $('#self-info').innerHTML=badge(0)+flowerLabel(0);$('#self-melds').innerHTML=melds(0);
+  $('#self-info').innerHTML=badge(0)+flowerLabel(0);$('#self-melds').innerHTML=publicTiles(0);
   const hand=game.players[0].hand,drawn=game.players[0].drawn;const ordered=[...hand.filter(t=>t.id!==drawn),...hand.filter(t=>t.id===drawn)];
   $('#hand').innerHTML=ordered.map(t=>tile(t,{button:true,operable:!animating&&canDiscard(game,0,t.id),selected:selected===t.id,drawn:t.id===drawn})).join('');
   const pending=game.pending;$('#last-play').textContent=game.phase==='response'?`${NAMES[pending.from]}${pending.rob?'加槓':'打出'} ${TILE_NAMES[pending.tile.type]}`:game.message;
@@ -29,7 +30,7 @@ function render(){
   $('#history').innerHTML=game.log.map(s=>`<li>${s}</li>`).join('');renderActions();
   if(game.phase==='over'&&!resultShown&&!animating){resultShown=true;showResult();}
 }
-function renderActions(){if(animating){$('#actions').innerHTML='<span class="action-pause">動作提示中…</span>';return;}const actions=legalActions(game);let html='';
+function renderActions(){const response=game.phase==='response'&&!animating,panel=$('#reaction-panel');panel.hidden=!response;$('#reaction-actions').innerHTML='';$('#reaction-message').textContent=response?`${NAMES[game.pending.from]}${game.pending.rob?'加槓':'打出'} ${TILE_NAMES[game.pending.tile.type]}，要接牌嗎？`:'';if(animating){$('#actions').innerHTML='<span class="action-pause">動作提示中…</span>';return;}const actions=legalActions(game);let html='';
   if(game.phase==='over'){html='<button class="primary" data-action="result">本局結算</button>';}
   else {
     for(const [index,a] of actions.entries()){
@@ -38,7 +39,7 @@ function renderActions(){if(animating){$('#actions').innerHTML='<span class="act
       html+=`<button class="action-button ${a.kind==='pass'?'secondary':''} ${a.kind==='chi'?'chi':''}" data-action-index="${index}">${label}</button>`;
     }
     if(game.phase==='discard'&&game.turn===0)html+=`<button class="primary" data-action="discard" ${selected===null?'disabled':''}>${selected===null?'請選一張牌':`打出 ${TILE_NAMES[game.players[0].hand.find(t=>t.id===selected)?.type]}`}</button>`;
-  }$('#actions').innerHTML=html;
+  }if(response){$('#actions').innerHTML='';$('#reaction-actions').innerHTML=html;}else $('#actions').innerHTML=html;
 }
 function tickSound(){if(!sound)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume();const osc=audio.createOscillator(),gain=audio.createGain();osc.connect(gain);gain.connect(audio.destination);osc.type='triangle';osc.frequency.setValueAtTime(650,audio.currentTime);osc.frequency.exponentialRampToValueAtTime(180,audio.currentTime+.055);gain.gain.setValueAtTime(.07,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.09);osc.start();osc.stop(audio.currentTime+.1);}catch{sound=false;}}
 function schedule(){clearTimeout(timer);if(!animating&&game.phase==='discard'&&game.turn!==0&&!document.querySelector('dialog[open]'))timer=setTimeout(()=>act(()=>aiStep(game)),850);}
@@ -57,7 +58,8 @@ function playSelected(){if(!animating&&selected!==null&&canDiscard(game,0,select
 $('#hand').addEventListener('click',e=>{const t=e.target.closest('[data-tile]');if(!t||t.disabled||animating)return;selected=Number(t.dataset.tile);for(const b of $('#hand').querySelectorAll('[data-tile]')){const active=Number(b.dataset.tile)===selected;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));}renderActions();});
 // Keep the DOM stable between clicks so native dblclick dispatch is reliable.
 $('#hand').addEventListener('dblclick',e=>{const t=e.target.closest('[data-tile]');if(t&&!t.disabled&&!animating){selected=Number(t.dataset.tile);playSelected();}});
-$('#actions').addEventListener('click',e=>{const b=e.target.closest('button');if(!b||b.disabled||animating)return;if(b.dataset.action==='discard')return playSelected();if(b.dataset.action==='result')return showResult();const a=legalActions(game)[Number(b.dataset.actionIndex)];if(!a)return;act(()=>{if(game.phase==='response')respond(game,a.kind,a.sequence);else if(a.kind==='win')winSelf(game,0);else if(a.kind==='kong')selfKong(game,0,a.type);});});
+function handleAction(e){const b=e.target.closest('button');if(!b||b.disabled||animating)return;if(b.dataset.action==='discard')return playSelected();if(b.dataset.action==='result')return showResult();const a=legalActions(game)[Number(b.dataset.actionIndex)];if(!a)return;act(()=>{if(game.phase==='response')respond(game,a.kind,a.sequence);else if(a.kind==='win')winSelf(game,0);else if(a.kind==='kong')selfKong(game,0,a.type);});}
+$('#actions').addEventListener('click',handleAction);$('#reaction-actions').addEventListener('click',handleAction);
 $('#hand').addEventListener('keydown',e=>{if(animating||game.phase!=='discard'||game.turn!==0)return;const buttons=[...$('#hand').querySelectorAll('[data-tile]:not(:disabled)')];if(!buttons.length)return;if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();const idx=buttons.findIndex(b=>Number(b.dataset.tile)===selected),next=buttons[(Math.max(idx,0)+(e.key==='ArrowRight'?1:-1)+buttons.length)%buttons.length];selected=Number(next.dataset.tile);render();document.querySelector(`[data-tile="${selected}"]`)?.focus({preventScroll:true});}else if(e.key==='Enter'&&selected!==null){e.preventDefault();playSelected();}});
 function openDialog(id){clearTimeout(timer);$(id).showModal();}
 $('#rules-button').onclick=()=>openDialog('#rules');$('#restart').onclick=()=>openDialog('#restart-dialog');
