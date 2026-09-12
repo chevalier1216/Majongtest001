@@ -9,6 +9,7 @@
 .flower-target{font-size:12px;color:#c7d4b4;margin-top:5px;line-height:1.4}
 .flowers{letter-spacing:1px}.flowers b{font-family:sans-serif;font-weight:400;color:#e5c17b;font-size:12px;letter-spacing:0;margin-left:5px}
 .matched-flower{color:#ffe3a1;text-decoration:underline;text-underline-offset:3px}
+.flower-face{display:grid;place-items:center;background:#fffdf5;background-image:none!important;color:#b62f2f;font-family:DFKai-SB,BiauKai,serif;font-size:calc(var(--tile-w)*.55);font-weight:700;line-height:1}.flower-face small{position:absolute;top:2px;right:2px;color:currentColor;font-family:Georgia,serif;font-size:calc(var(--tile-w)*.2);font-weight:700}.flower-face.flower-plant{color:#176b43}
 .call-notice{position:absolute;inset:0;z-index:12;display:grid;place-items:center;background:#071d1855;backdrop-filter:blur(1px);border-radius:12px;pointer-events:all}
 .call-notice[hidden]{display:none}.call-card{min-width:200px;max-width:90%;padding:20px 32px;background:#142f27f5;border:2px solid #d6b979;box-shadow:0 15px 45px #0009;border-radius:14px;text-align:center;animation:call-in .2s ease-out}
 .call-player{display:block;font-size:17px;color:#e5e8d7}.call-card strong{display:block;font-family:serif;font-size:58px;letter-spacing:8px;color:#f1ce85;margin:3px 0 10px}.call-card p{font-size:14px;color:#cedac2;line-height:1.6;margin-top:13px}.call-tiles{display:flex;justify-content:center;gap:5px}.call-tiles .tile{--tile-w:38px;opacity:.82}.flower-call{font-size:35px;font-family:serif;color:#e9d3a2}.action-pause{font-size:14px;color:#d4c097;padding:12px}
