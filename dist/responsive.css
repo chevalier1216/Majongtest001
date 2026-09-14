@@ -181,3 +181,6 @@ dialog{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-
  .call-notice{max-width:min(380px,70vw);left:auto;right:0;transform:none}
  .call-card{padding:7px 10px;gap:6px 8px}.call-player{font-size:16px}.call-card strong{font-size:24px}.call-card p{font-size:15px}.call-tiles .tile{--tile-w:32px}
 }
+
+/* The right-hand seat exposes melds toward the table centre. */
+.east .opponent-zones{flex-direction:row-reverse}
