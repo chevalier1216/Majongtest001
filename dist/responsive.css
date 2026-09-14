@@ -184,3 +184,42 @@ dialog{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-
 
 /* The right-hand seat exposes melds toward the table centre. */
 .east .opponent-zones{flex-direction:row-reverse}
+
+/* Flower tiles are informational artwork, always upright and readable.
+   Preserve their size; scroll the public zone instead of shrinking the faces. */
+#table .flower-meld{gap:6px;flex:none;align-items:center}
+#table .flower-meld .flower-tile,.call-tiles .flower-tile{
+ --tile-w:42px;width:var(--tile-w);height:calc(var(--tile-w)*1.38);
+ transform:none;flex:none;box-shadow:0 2px 0 #c9c0a1,0 3px 3px #0005;
+}
+#table .flower-meld .flower-face,.call-tiles .flower-face{
+ inset:0;left:0;top:0;width:100%;height:100%;transform:none;
+ display:block;background-image:url('assets/flowers.png')!important;
+ background-size:400% 200%;background-repeat:no-repeat;
+}
+.flower-face::after{content:"";position:absolute;inset:0 0 auto;height:33%;background:#fffdf5;border-radius:4px 4px 0 0}
+.flower-face .flower-name,.flower-face small{
+ z-index:1;
+ position:absolute;top:2px;margin:0;background:#fffdf5;border-radius:2px;
+ font-family:'Microsoft JhengHei','PingFang TC',sans-serif;line-height:1.05;
+}
+.flower-face .flower-name{right:2px;font-size:18px;color:#ad2525}
+.flower-face.flower-plant .flower-name{color:#143d28}
+.flower-face small{left:2px;right:auto;font-size:13px;color:#143d28}
+#table .flower-tai{font-size:14px;line-height:1.4;flex:none}
+#table .west .opponent-melds,#table .east .opponent-melds{overflow:auto;max-height:235px;padding:4px 5px 7px}
+#table .west .opponent-zones,#table .east .opponent-zones{overflow:visible;max-height:none}
+#table .north .opponent-melds{justify-content:safe center;padding-bottom:7px}
+#table .north:has(.flower-meld)~.river-north{top:158px}
+@media(max-width:800px){
+ #table .flower-meld .flower-tile{--tile-w:36px}
+ #table .west .opponent-melds,#table .east .opponent-melds{max-height:210px}
+}
+@media(orientation:landscape) and (max-height:540px){
+ #table .opponent,#table .north,#table .west,#table .east{width:auto}
+ #table .opponent-zones{max-height:none;overflow:visible}
+ #table .opponent-melds,#table .north .opponent-melds,#table .west .opponent-melds,#table .east .opponent-melds{max-height:144px;overflow:auto}
+ #table .flower-meld .flower-tile{--tile-w:36px}
+ #table{grid-template-rows:minmax(194px,auto) 126px auto auto}
+ #table .north:has(.flower-meld)~.river-north{top:auto}
+}
