@@ -200,7 +200,7 @@ dialog{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-
 .flower-face small{left:3%;right:auto;font-size:calc(var(--tile-w)*.3);color:#143d28}
 
 /* Public information must remain readable at every seat, including landscape. */
-#table{--public-tile-w:32px}
+#table{--public-tile-w:43.2px}
 #table .meld .tile{--tile-w:var(--public-tile-w)}
 #table .opponent-melds{padding:4px 4px 8px;max-height:280px;overflow:auto;flex-shrink:1}
 #table .opponent-zones{max-height:none;overflow:visible}
@@ -210,15 +210,15 @@ dialog{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-
 #table .north .opponent-melds{justify-content:safe center}
 @media(min-height:541px){
  #table{min-height:580px}
- #table .west,#table .east{width:160px}
- #table .river-north{top:145px;max-height:90px;overflow:auto}
+ #table .west,#table .east{width:184px}
+ #table .river-north{top:162px;max-height:74px;overflow:auto}
  #table .center-table{top:55%}
- #table .river-west{left:195px}
- #table .river-east{right:195px}
+ #table .river-west{left:219px}
+ #table .river-east{right:219px}
 }
-@media(max-width:1100px){#table{--public-tile-w:28px}}
+@media(max-width:1100px){#table{--public-tile-w:37.8px}}
 @media(orientation:landscape) and (max-height:540px){
- #table{--public-tile-w:28px;grid-template-rows:minmax(200px,auto) 126px auto auto}
+ #table{--public-tile-w:37.8px;grid-template-rows:minmax(200px,auto) 126px auto auto}
  #table .opponent,#table .north,#table .west,#table .east{width:auto;min-width:0}
  #table .opponent-melds{max-height:200px}
 }
