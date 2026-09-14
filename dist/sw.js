@@ -1,4 +1,4 @@
-const CACHE='qingzhu-v9';
+const CACHE='qingzhu-v10';
 const ASSETS=['./','./index.html','./style.css','./responsive.css','./app.mjs','./engine.mjs','./scoring.mjs','./assets/tiles.png','./assets/flowers.png'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('qingzhu-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
