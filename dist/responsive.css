@@ -2,7 +2,7 @@
 html{min-width:320px}
 body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom)}
 main{width:100%;min-width:0}
-#table{--public-tile-w:43.2px;--opponent-flower-w:calc(var(--public-tile-w)*1.35);--side-w:190px;display:grid;grid-template-columns:var(--side-w) minmax(0,1fr) var(--side-w);grid-template-rows:auto minmax(320px,auto) auto;gap:16px 14px;height:auto;min-height:580px;max-height:none;padding:14px;overflow:visible}
+#table{--public-tile-w:43.2px;--opponent-flower-w:var(--public-tile-w);--side-w:190px;display:grid;grid-template-columns:var(--side-w) minmax(0,1fr) var(--side-w);grid-template-rows:auto minmax(320px,auto) auto;gap:16px 14px;height:auto;min-height:580px;max-height:none;padding:14px;overflow:visible}
 #table .opponent{position:static;inset:auto;transform:none;width:auto;min-width:0;max-width:none;max-height:none;align-self:start;padding:0}
 #table .north{grid-column:1/-1;grid-row:1}
 #table .west{grid-column:1;grid-row:2}

@@ -53,7 +53,7 @@ try{
     assert.equal(meldTiles.length,stress?18:10);
     assert.equal(seat.rack.overflow,'visible','public rack must not scroll');
     for(const t of flowers){
-     const expected=seat.publicW*(seat.selector==='#self-melds'?1:1.35);
+     const expected=seat.publicW;
      assert.ok(Math.abs(Math.min(t.w,t.h)-expected)<.1,JSON.stringify({width,seat:seat.selector,t,expected}));
      assert.equal(rotation(t.transform),rotation(standard.transform),'tile orientation differs');
      assert.equal(rotation(t.faceTransform),rotation(standard.faceTransform),'face orientation differs');
