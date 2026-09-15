@@ -147,7 +147,7 @@ body:has(.opening-notice:not([hidden])) .player-area{display:none}
  #table .north .opponent-melds,#table .self-melds{flex-direction:column}
  #table .north .flower-meld,#table .self-melds .flower-meld{gap:1px;padding-inline-start:0;border:0}
  #table .north .flower-meld .flower-tile{--tile-w:min(var(--opponent-flower-w),calc((100vw - 100px)/var(--flower-count)))}
- #table .self-melds .flower-meld .flower-tile{--tile-w:min(var(--public-tile-w),calc((100vw - 100px)/var(--flower-count)))}
+ #table .self-melds .flower-meld .flower-tile{--tile-w:min(var(--flower-tile-w),calc((100vw - 100px)/var(--flower-count)))}
  #table .flower-tai{font-size:12px}
  .player-area{padding:6px 2px env(safe-area-inset-bottom)}
  .action-line{flex-direction:row;align-items:center;flex-wrap:wrap;margin-bottom:0}.turn-status{max-width:100%}.actions{margin-left:auto;max-width:100%;flex-wrap:wrap}
