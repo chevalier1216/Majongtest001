@@ -28,6 +28,7 @@ try{
   assert.equal(await page.locator('#opening-notice .die').count(),3);
   assert.equal(await page.locator('#hand .tile').count(),0);
   assert.equal(await page.locator('#opening-notice').isVisible(),true);
+  const openingTable=await page.locator('#table').boundingBox();
   const diceBox=await page.locator('#opening-notice').boundingBox();
   console.log('DICE_BOX '+JSON.stringify({width,height,diceBox}));
   assert.ok(diceBox.y>=0&&diceBox.y+diceBox.height<=height,'dice result must fit the viewport');
@@ -71,7 +72,7 @@ try{
     }
    }
    const pageHeight=await page.evaluate(()=>document.documentElement.scrollHeight);assert.ok(pageHeight<=height,'vertical page overflow '+pageHeight+'>'+height);
-   const tableBox=await page.locator('#table').boundingBox();assert.ok(tableBox.y+tableBox.height<=height,'table escapes viewport');
+   const tableBox=await page.locator('#table').boundingBox();assert.ok(tableBox.y+tableBox.height<=height,'table escapes viewport');assert.ok(Math.abs(tableBox.height-openingTable.height)<1,'table height must not change with game state');
    const handBox=await page.locator('#hand').boundingBox();assert.ok(handBox.y+handBox.height<=height,'hand escapes viewport');
    const pageWidth=await page.evaluate(()=>document.documentElement.scrollWidth);assert.ok(pageWidth<=width,'horizontal page overflow '+pageWidth+'>'+width);
    const shot=await page.screenshot({path:'qa-output/'+(stress?'full-racks-':'table-')+width+'.png',fullPage:true});

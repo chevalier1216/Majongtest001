@@ -211,3 +211,7 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding-inline:12px;
  #table .river{grid-column:1;width:100%}#table .river-north{grid-row:1}#table .river-west{grid-row:2}#table .center-table{grid-column:1;grid-row:3}#table .river-east{grid-row:4}#table .river-south{grid-row:5}
  #table .avatar{display:none}.hand-footer #hand-tip{display:none}.topbar{padding-inline:8px}.brand h1{font-size:17px}
 }
+/* Reserve the same controls area during dice, ordinary turns, and settlement. */
+.player-area,body:has(.opening-notice:not([hidden])) .player-area{display:block;height:156px;flex:0 0 156px}
+.hand-scroll{height:96px}
+@media(max-height:600px){.player-area,body:has(.opening-notice:not([hidden])) .player-area{height:116px;flex-basis:116px}.hand-scroll{height:64px}}
