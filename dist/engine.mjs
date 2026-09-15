@@ -21,7 +21,7 @@ function emit(g,kind,seat,tile=null,from=null,sequence=null){g.events.push({kind
 export const seatWind=(g,seat)=>(seat-g.dealer+4)%4;
 export const roundLabel=g=>`${WINDS[Math.floor(g.handNumber/4)]}風${WINDS[g.handNumber%4]}局`;
 export function chiBan(sequence,called){const banned=[called],start=sequence[0];if(called===start&&start%9<6)banned.push(start+3);if(called===start+2&&start%9>0)banned.push(start-1);return banned;}
-export function canDiscard(g,seat,id){const p=g.players[seat],t=p.hand.find(t=>t.id===id);return g.phase==='discard'&&g.turn===seat&&!!t&&!(p.banned||[]).includes(t.type);}
+export function canDiscard(g,seat,id){const p=g.players[seat],t=p.hand.find(t=>t.id===id);return g.phase==='discard'&&g.turn===seat&&!!t&&(!p.ready||id===p.drawn)&&!(p.banned||[]).includes(t.type);}
 function log(g,s){g.log.unshift(s);g.log=g.log.slice(0,60);g.message=s;}
 function endDraw(g){g.phase='over';g.result={kind:'draw',winners:[],text:'流局 · 本局無人胡牌',deltas:[0,0,0,0]};log(g,'牌牆剩 16 張，本局流局。');}
 function take(g,seat,back=false,initial=false){
@@ -32,17 +32,28 @@ function take(g,seat,back=false,initial=false){
     p.hand.push(tile);sort(p);p.drawn=tile.id;p.passedWin=false;if(!initial)p.drawCount++;return true;
   }endDraw(g);return false;
 }
-export function createGame(seed=Date.now(),previous=null){
+// The UI defers the deal until its two-second dice display has completed.
+// Headless callers can still start an immediately playable, deterministic deal.
+export function createGame(seed=Date.now(),previous=null,{opening=false}={}){
   requireThat(!previous?.matchOver,'本將已結束，請重新開桌');
   const retained=previous&&(previous.result?.kind==='draw'||previous.result?.winners.includes(previous.dealer));
   const handNumber=previous?previous.handNumber+(retained?0:1):0;
-  const dealer=previous?(previous.result?.kind==='draw'||previous.result?.winners.includes(previous.dealer)?previous.dealer:(previous.dealer+1)%4):0;
-  const g={seed,dealer,handNumber,streak:retained?previous.streak+1:0,matchOver:false,events:[],discardCount:0,totalCalls:0,round:previous?previous.round+1:1,turn:dealer,phase:'discard',wall:[],players:NAMES.map((name,i)=>({name,hand:[],melds:[],flowers:[],discards:[],score:previous?.players[i].score??STARTING_SCORE,drawn:null,passedWin:false,banned:[],drawCount:0,drawSource:null,kongChain:null})),log:[],pending:null,result:null,lastDiscard:null};
+  const diceRandom=rng(seed^0x1D1CE),dice=Array.from({length:3},()=>1+Math.floor(diceRandom()*6)),total=dice.reduce((a,b)=>a+b,0);
+  const dealer=previous?(retained?previous.dealer:(previous.dealer+1)%4):opening?(total-1)%4:0;
+  const wallSeat=previous?(dealer+total-1)%4:dealer;
+  const g={seed,dealer,handNumber,streak:retained?previous.streak+1:0,matchOver:false,matchEndReason:null,opening:opening?{dice,total,wallSeat,firstDeal:!previous}:null,events:[],discardCount:0,totalCalls:0,round:previous?previous.round+1:1,turn:dealer,phase:'opening',wall:[],players:NAMES.map((name,i)=>({name,hand:[],melds:[],flowers:[],discards:[],score:previous?.players[i].score??STARTING_SCORE,drawn:null,passedWin:false,banned:[],drawCount:0,drawSource:null,kongChain:null,ready:false,readyWaits:[]})),log:[],pending:null,result:null,lastDiscard:null};
   let id=0;for(let t=0;t<42;t++)for(let j=0;j<(t<34?4:1);j++)g.wall.push({id:id++,type:t});
   const random=rng(seed);for(let i=g.wall.length-1;i>0;i--){const j=Math.floor(random()*(i+1));[g.wall[i],g.wall[j]]=[g.wall[j],g.wall[i]];}
-  for(let j=0;j<16;j++)for(let d=0;d<4;d++)take(g,(dealer+d)%4,false,true);
-  take(g,dealer,false,true);for(let i=0;i<4;i++)if(i!==dealer)g.players[i].drawn=null;
-  log(g,`${roundLabel(g)} · ${NAMES[dealer]}坐莊${g.streak?`・連莊 ${g.streak}`:''}`);return g;
+  if(opening){const cut=(wallSeat*36+total*2)%144;g.wall.push(...g.wall.splice(0,cut));log(g,`擲骰 ${dice.join('＋')}＝${total} · ${NAMES[dealer]}為東家先抓牌，從${NAMES[wallSeat]}的牌牆取牌`);}
+  else completeOpening(g);
+  return g;
+}
+export function completeOpening(g){
+  requireThat(g.phase==='opening','本局已完成擲骰發牌');
+  for(let j=0;j<16;j++)for(let d=0;d<4;d++)take(g,(g.dealer+d)%4,false,true);
+  take(g,g.dealer,false,true);for(let i=0;i<4;i++)if(i!==g.dealer)g.players[i].drawn=null;
+  g.phase='discard';g.turn=g.dealer;
+  log(g,`${roundLabel(g)} · ${NAMES[g.dealer]}坐莊${g.streak?`・連莊 ${g.streak}`:''}`);
 }
 export function chiOptions(p,t){
   if(t>=27)return[];const result=[];
@@ -53,7 +64,7 @@ function offers(g,from,t,rob=false){
   const list=[];for(let d=1;d<4;d++){
     const seat=(from+d)%4,p=g.players[seat];
     if(!p.passedWin&&isWinning([...types(p),t],p.melds.length))list.push({seat,kind:'win',rank:3});
-    if(rob)continue;
+    if(rob||p.ready)continue;
     if(d!==1&&count(p,t)>=3&&g.wall.length>16)list.push({seat,kind:'kong',rank:2,type:t});
     if(count(p,t)>=2)list.push({seat,kind:'pong',rank:2,type:t});
     if(d===1)for(const sequence of chiOptions(p,t))list.push({seat,kind:'chi',rank:1,sequence});
@@ -63,7 +74,8 @@ export function legalActions(g){
   if(g.phase==='response')return [...g.pending.offers.filter(o=>o.seat===0),{kind:'pass'}];
   if(g.phase!=='discard'||g.turn!==0)return[];
   const p=g.players[0],a=[];if(canWinSelf(p))a.push({kind:'win'});
-  if(p.drawn!==null&&g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)&&count(p,t))a.push({kind:'kong',type:t});return a;
+  if(!p.ready&&p.drawn!==null&&g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)&&count(p,t))a.push({kind:'kong',type:t});
+  const choices=readyDiscards(g,0);if(choices.length)a.push({kind:'ready',discards:choices});return a;
 }
 function canWinSelf(p){return p.drawn!==null&&p.kongChain!=='needs-followup'&&isWinning(types(p),p.melds.length);}
 function finish(g,winners,from,self=false,rob=false){
@@ -71,14 +83,25 @@ function finish(g,winners,from,self=false,rob=false){
   const deltas=[0,0,0,0],scores={},payments=[];
   for(const w of winners){scores[w]=scoreHand(g,w,{self,rob,tile});for(const payer of self?[0,1,2,3].filter(s=>s!==w):[from]){const payment=paymentFor(g,w,payer,scores[w]);payments.push(payment);deltas[payer]-=payment.amount;deltas[w]+=payment.amount;}}
   for(let s=0;s<4;s++)g.players[s].score+=deltas[s];
-  g.matchOver=g.handNumber===15&&!winners.includes(g.dealer);
-  g.result={kind:'win',winners,from,self,rob,deltas,tile,scores,payments,text:`${winners.map(w=>NAMES[w]).join('、')}${self?'自摸':rob?'搶槓胡':'胡牌'}`};g.phase='over';emit(g,self?'self-win':'win',winners[0],tile?.type,from);log(g,g.result.text);
+  g.matchEndReason=g.players.some(p=>p.score<0)?'bankruptcy':g.handNumber===15&&!winners.includes(g.dealer)?'round-limit':null;
+  g.matchOver=!!g.matchEndReason;
+  const rankings=g.players.map((p,seat)=>({seat,name:p.name,score:p.score})).sort((a,b)=>b.score-a.score||a.seat-b.seat);
+  for(let i=0;i<rankings.length;i++)rankings[i].rank=i&&rankings[i].score===rankings[i-1].score?rankings[i-1].rank:i+1;
+  g.result={kind:'win',winners,from,self,rob,deltas,tile,scores,payments,rankings,text:`${winners.map(w=>NAMES[w]).join('、')}${self?'自摸':rob?'搶槓胡':'胡牌'}`};g.phase='over';emit(g,self?'self-win':'win',winners[0],tile?.type,from);log(g,g.result.text);
 }
 function advance(g,from){g.pending=null;g.turn=(from+1)%4;g.phase='discard';if(take(g,g.turn))log(g,`${NAMES[g.turn]}摸牌`);}
 function remove(p,t,n){const out=[];for(let i=0;i<n;i++){const at=p.hand.findIndex(x=>x.type===t);requireThat(at>=0);out.push(...p.hand.splice(at,1));}return out;}
-export function discard(g,seat,id){
-  requireThat(canDiscard(g,seat,id),'這張牌目前不能打出（吃後禁打或非你的回合）');const p=g.players[seat],idx=p.hand.findIndex(t=>t.id===id);requireThat(idx>=0);
+export function readyDiscards(g,seat=0){
+  const p=g.players[seat];if(g.phase!=='discard'||g.turn!==seat||p.ready)return[];
+  return p.hand.filter(t=>canDiscard(g,seat,t.id)).map(t=>({id:t.id,waits:waits({...p,hand:p.hand.filter(x=>x.id!==t.id)})})).filter(o=>o.waits.length);
+}
+export function declareReady(g,seat,id){discard(g,seat,id,true);}
+export function discard(g,seat,id,declaringReady=false){
+  requireThat(canDiscard(g,seat,id),'這張牌目前不能打出（聽牌鎖手、吃後禁打或非你的回合）');const p=g.players[seat],idx=p.hand.findIndex(t=>t.id===id);requireThat(idx>=0);
+  const declaration=declaringReady?readyDiscards(g,seat).find(o=>o.id===id):null;
+  requireThat(!declaringReady||declaration,'打出這張牌後沒有聽牌，不能宣告聽牌');
   const [tile]=p.hand.splice(idx,1);p.drawn=null;p.banned=[];p.kongChain=null;g.discardCount++;p.discards.push(tile);g.lastDiscard={seat,tile};log(g,`${NAMES[seat]}打出 ${TILE_NAMES[tile.type]}`);
+  if(declaration){p.ready=true;p.readyWaits=declaration.waits;emit(g,'ready',seat,tile.type);log(g,`${NAMES[seat]}宣告聽牌 · 打出 ${TILE_NAMES[tile.type]}，胡牌加 1 台`);}
   const reactionOffers=offers(g,seat,tile.type);
   g.pending={from:seat,tile,offers:reactionOffers,rob:false,kongOfferSeats:reactionOffers.filter(o=>o.kind==='kong').map(o=>o.seat)};queueResponse(g);
 }
@@ -128,7 +151,7 @@ function completeSelfKong(g,seat,t,kind){
   g.totalCalls++;g.pending=null;g.phase='discard';g.turn=seat;if(followsClaim)p.kongChain='eligible';take(g,seat,true);
 }
 export function selfKong(g,seat,t){
-  requireThat(g.phase==='discard'&&g.turn===seat&&g.players[seat].drawn!==null&&g.wall.length>16);const p=g.players[seat];
+  requireThat(g.phase==='discard'&&g.turn===seat&&!g.players[seat].ready&&g.players[seat].drawn!==null&&g.wall.length>16);const p=g.players[seat];
   const concealed=count(p,t)===4,added=count(p,t)>0&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t);requireThat(concealed||added);
   const kind=concealed?'concealed':'added',tile=p.hand.find(x=>x.type===t);
   if(kind==='concealed'&&p.kongChain!=='needs-followup'){completeSelfKong(g,seat,t,kind);return;}
@@ -139,6 +162,7 @@ function handValue(hand){const c=Array(34).fill(0);for(const t of hand)c[t]++;le
   return score;
 }
 export function chooseDiscard(p){
+  if(p.ready)return p.hand.find(t=>t.id===p.drawn)||null;
   let best=null,bestScore=-Infinity;
   for(const tile of p.hand){if((p.banned||[]).includes(tile.type))continue;const h=p.hand.filter(x=>x.id!==tile.id).map(t=>t.type),score=handValue(h)+(tile.type>=27?.2:Math.abs(tile.type%9-4)*.015);if(score>bestScore){bestScore=score;best=tile;}}
   return best;
@@ -146,7 +170,7 @@ export function chooseDiscard(p){
 export function aiStep(g){
   requireThat(g.phase==='discard'&&g.turn!==0);const s=g.turn,p=g.players[s];
   if(canWinSelf(p)){winSelf(g,s);return;}
-  if(p.drawn!==null&&g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||count(p,t)&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)){selfKong(g,s,t);return;}
-  discard(g,s,chooseDiscard(p).id);
+  if(!p.ready&&p.drawn!==null&&g.wall.length>16)for(let t=0;t<34;t++)if(count(p,t)===4||count(p,t)&&p.melds.some(m=>m.kind==='pong'&&m.tiles[0].type===t)){selfKong(g,s,t);return;}
+  const chosen=chooseDiscard(p);if(!p.ready&&readyDiscards(g,s).some(o=>o.id===chosen.id))declareReady(g,s,chosen.id);else discard(g,s,chosen.id);
 }
-export function waits(p){const hand=types(p);if(hand.length!==16-3*p.melds.length)return[];return Array.from({length:34},(_,i)=>i).filter(t=>count(p,t)<4&&isWinning([...hand,t],p.melds.length));}
+export function waits(p){const hand=types(p),owned=[...hand,...p.melds.flatMap(m=>m.tiles.map(t=>t.type))];if(hand.length!==16-3*p.melds.length)return[];return Array.from({length:34},(_,i)=>i).filter(t=>owned.filter(x=>x===t).length<4&&isWinning([...hand,t],p.melds.length));}

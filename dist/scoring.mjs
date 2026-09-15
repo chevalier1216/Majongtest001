@@ -2,7 +2,7 @@
 export const BASE=5000,PER_TAI=500,STARTING_SCORE=50000;
 export const WINDS=['東','南','西','北'];
 export const FLOWERS=['春','夏','秋','冬','梅','蘭','竹','菊'];
-export const TAI_TABLE=[['門清／自摸','各 1'],['門清自摸','3（取代前兩項）'],['圈風／門風刻子','各 1'],['正花','每張 1'],['花槓','每組 2（取代該組正花）'],['三元刻子','每組 1'],['獨聽','1'],['平胡','2'],['全求人','2（不加獨聽）'],['三／四／五暗刻','2／5／8（擇一）'],['碰碰胡','4'],['混一色／清一色／字一色','4／8／8（擇一）'],['小／大三元','4／8（不加三元刻）'],['小／大四喜','8／16（大四喜不加風刻）'],['搶槓／海底／河底','各 1'],['槓上／花上自摸','加 1（海底不重複）'],['天胡／地胡','24／16（取代門清自摸）'],['八仙過海','8（須成胡，取代花台）'],['莊家／連莊','1＋2 × 連莊次數']];
+export const TAI_TABLE=[['宣告聽牌','1（宣告後鎖手）'],['門清／自摸','各 1'],['門清自摸','3（取代前兩項）'],['圈風／門風刻子','各 1'],['正花','每張 1'],['花槓','每組 2（取代該組正花）'],['三元刻子','每組 1'],['獨聽','1'],['平胡','2'],['全求人','2（不加獨聽）'],['三／四／五暗刻','2／5／8（擇一）'],['碰碰胡','4'],['混一色／清一色／字一色','4／8／8（擇一）'],['小／大三元','4／8（不加三元刻）'],['小／大四喜','8／16（大四喜不加風刻）'],['搶槓／海底／河底','各 1'],['槓上／花上自摸','加 1（海底不重複）'],['天胡／地胡','24／16（取代門清自摸）'],['八仙過海','8（須成胡，取代花台）'],['莊家／連莊','1＋2 × 連莊次數']];
 export function decompose(hand,meldCount=0){
  if(hand.length!==17-meldCount*3)return[];const c=Array(34).fill(0);
  for(const t of hand)if(t<0||t>33||++c[t]>4)return[];
@@ -32,6 +32,7 @@ export function scoreHand(g,seat,{self=false,rob=false,tile}={}){
  const before=[...hand];before.splice(before.indexOf(winning),1);
  const waitTypes=Array.from({length:34},(_,t)=>t).filter(t=>all.filter(x=>x===t).length-(t===winning?1:0)<4&&decompose([...before,t],p.melds.length).length);
  const common=flowerItems(g,seat),add=(items,name,tai)=>items.push({name,tai});
+ if(p.ready)add(common,'宣告聽牌',1);
  const heavenly=self&&seat===g.dealer&&g.discardCount===0&&g.totalCalls===0;
  const earthly=self&&seat!==g.dealer&&p.drawCount===1&&p.discards.length===0&&g.totalCalls===0;
  if(heavenly)add(common,'天胡',24);else if(earthly)add(common,'地胡',16);else if(closed&&self)add(common,'門清自摸',3);else{if(closed)add(common,'門清',1);if(self)add(common,'自摸',1);}
