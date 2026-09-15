@@ -2,7 +2,7 @@
 html{min-width:320px}
 body{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right);padding-bottom:env(safe-area-inset-bottom)}
 main{width:100%;min-width:0}
-#table{--public-tile-w:43.2px;--opponent-flower-w:var(--public-tile-w);--side-w:190px;display:grid;grid-template-columns:var(--side-w) minmax(0,1fr) var(--side-w);grid-template-rows:auto minmax(320px,auto) auto;gap:16px 14px;height:auto;min-height:580px;max-height:none;padding:14px;overflow:visible}
+#table{--public-tile-w:43.2px;--flower-tile-w:43.2px;--opponent-flower-w:var(--flower-tile-w);--side-w:190px;display:grid;grid-template-columns:var(--side-w) minmax(0,1fr) var(--side-w);grid-template-rows:auto minmax(320px,auto) auto;gap:16px 14px;height:auto;min-height:580px;max-height:none;padding:14px;overflow:visible}
 #table .opponent{position:static;inset:auto;transform:none;width:auto;min-width:0;max-width:none;max-height:none;align-self:start;padding:0}
 #table .north{grid-column:1/-1;grid-row:1}
 #table .west{grid-column:1;grid-row:2}
@@ -24,7 +24,7 @@ main{width:100%;min-width:0}
 #table .meld-run{display:flex;flex:none;flex-wrap:nowrap;gap:6px;align-items:center}
 #table .meld{display:flex;flex:none;flex-direction:row;flex-wrap:nowrap;gap:1px}
 #table .meld .tile{--tile-w:var(--public-tile-w)}
-#table .opponent-melds .flower-tile{--tile-w:var(--opponent-flower-w)}
+#table .opponent-melds .flower-tile,#table .self-melds .flower-tile{--tile-w:var(--flower-tile-w)}
 #table .flower-meld{border-inline-start:1px solid #d6b97988;padding-inline-start:8px;align-items:center}
 #table .flower-tai{align-self:center;margin-inline-start:5px;color:#e5c17b;font-size:14px;line-height:1.3;white-space:nowrap}
 #table .north .opponent-melds .tile,#table .north .revealed-hand .tile{transform:rotate(180deg)}
@@ -110,7 +110,7 @@ dialog{max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-
 body:has(.opening-notice:not([hidden])) .player-area{display:none}
 
 @media(max-width:1100px){
- #table{--public-tile-w:37.8px;--side-w:166px;gap:12px 8px;padding:10px}
+ #table{--public-tile-w:37.8px;--flower-tile-w:37.8px;--side-w:166px;gap:12px 8px;padding:10px}
  #table .avatar{display:none}#table .opponent-zones{gap:7px}
  #table .west .back,#table .east .back{width:14px;height:11px}
  #table .table-middle{grid-template-columns:minmax(0,1fr) 130px minmax(0,1fr);gap:7px}
