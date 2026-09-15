@@ -85,7 +85,7 @@ function showResult(){const r=game.result;
  const rows=game.matchOver?r.rankings:game.players.map((p,seat)=>({...p,seat}));
  $('#scoreboard').innerHTML=rows.map(p=>`<div class="score-row${p.score<0?' bankrupt':''}"><span>${game.matchOver?`<b class="rank">${p.rank}</b> `:''}${p.name}</span><span class="${r.deltas[p.seat]>=0?'positive':'negative'}">本局 ${r.deltas[p.seat]>0?'+':''}${r.deltas[p.seat].toLocaleString()}</span><span>持有 ${p.score.toLocaleString()}</span></div>`).join('');
  $('#next-round').textContent=game.matchOver?'開始新的一將（積分重置）':'下一局';
- if(!$('#result').open)openDialog('#result');}
+ if(!$('#result').open)openDialog('#result');$('#result').scrollTop=0;}
 
 $('#review-table').onclick=()=>$('#result').close();
 $('#next-round').onclick=()=>{$('#result').close();act(()=>{game=createGame(Date.now(),game.matchOver?null:game,{opening:true});resultShown=false;});};

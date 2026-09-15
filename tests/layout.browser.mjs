@@ -29,6 +29,7 @@ try{
   assert.equal(await page.locator('#hand .tile').count(),0);
   assert.equal(await page.locator('#opening-notice').isVisible(),true);
   const diceBox=await page.locator('#opening-notice').boundingBox();
+  console.log('DICE_BOX '+JSON.stringify({width,height,diceBox}));
   assert.ok(diceBox.y>=0&&diceBox.y+diceBox.height<=height,'dice result must fit the viewport');
   const diceShot=await page.screenshot({path:'qa-output/dice-'+width+'.png',fullPage:true});
   if(width===844)console.log('QA_DICE_844 '+diceShot.toString('base64'));
@@ -84,6 +85,7 @@ try{
   await page.evaluate(()=>window.qaBankrupt());
   assert.equal(await page.locator('#result').isVisible(),true);
   assert.equal(await page.locator('#ranking-heading').innerText(),'最終點數排名');
+  const headingBox=await page.locator('#result-title').boundingBox();assert.ok(headingBox.y>=0&&headingBox.y+headingBox.height<=height,'result title must be visible on opening');
   const names=await page.locator('#scoreboard .score-row>span:first-child').allTextContents();assert.match(names.at(-1),/阿青/);
   assert.match(await page.locator('#winning-hands').innerText(),/宣告聽牌/);
   assert.match(await page.locator('#next-round').innerText(),/積分重置/);
