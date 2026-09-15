@@ -47,3 +47,22 @@ jobs:
       - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v5
+
+      - name: Verify the published game
+        env:
+          PUBLISHED_BASE: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          for file in index.html app.mjs engine.mjs scoring.mjs responsive.css; do
+            target_path="$RUNNER_TEMP/published-$file"
+            for attempt in 1 2 3 4 5; do
+              if curl --fail --silent --show-error --max-time 20 "$PUBLISHED_BASE$file?revision=$GITHUB_SHA" --output "$target_path" && cmp --silent "dist/$file" "$target_path"; then
+                break
+              fi
+              if [ "$attempt" = 5 ]; then
+                printf 'Published file does not match: %s\n' "$file"
+                exit 1
+              fi
+              sleep 10
+            done
+            printf 'Verified published %s\n' "$file"
+          done
