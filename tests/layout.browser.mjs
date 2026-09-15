@@ -40,7 +40,7 @@ try{
    const measurements=await page.evaluate(()=>['#self-melds','#seat1','#seat2','#seat3'].map(selector=>{
     const zone=document.querySelector(selector),rack=zone.querySelector('.opponent-melds')||zone,publicW=parseFloat(getComputedStyle(document.querySelector('#table')).getPropertyValue('--public-tile-w'));
     const rect=r=>({x:r.x,y:r.y,w:r.width,h:r.height});
-    return {selector,publicW,rack:{...rect(rack.getBoundingClientRect()),overflow:getComputedStyle(rack).overflow},tiles:[...zone.querySelectorAll('.meld .tile')].map(tile=>{
+    return {selector,publicW,flowerW:parseFloat(getComputedStyle(document.querySelector('#table')).getPropertyValue('--flower-tile-w')),rack:{...rect(rack.getBoundingClientRect()),overflow:getComputedStyle(rack).overflow},tiles:[...zone.querySelectorAll('.meld .tile')].map(tile=>{
      const f=tile.querySelector('.face'),style=getComputedStyle(f);
      return {flower:tile.classList.contains('flower-tile'),...rect(tile.getBoundingClientRect()),transform:getComputedStyle(tile).transform,faceTransform:style.transform,label:tile.getAttribute('aria-label')};
     })};
@@ -53,7 +53,7 @@ try{
     assert.equal(meldTiles.length,stress?18:10);
     assert.equal(seat.rack.overflow,'visible','public rack must not scroll');
     for(const t of flowers){
-     const expected=seat.publicW;
+     const expected=seat.flowerW;
      assert.ok(Math.abs(Math.min(t.w,t.h)-expected)<.1,JSON.stringify({width,seat:seat.selector,t,expected}));
      assert.equal(rotation(t.transform),rotation(standard.transform),'tile orientation differs');
      assert.equal(rotation(t.faceTransform),rotation(standard.faceTransform),'face orientation differs');
@@ -64,7 +64,7 @@ try{
      assert.ok(side?b.y>=a.y+a.h-.2:b.x>=a.x+a.w-.2,'melds overlap');
     }
     for(const t of seat.tiles){
-     assert.ok(Math.min(t.w,t.h)>=37.5,'public tile became too small');
+     assert.ok(Math.abs(Math.min(t.w,t.h)-(t.flower?seat.flowerW:32))<.1,'public tile must match its specified size');
      assert.ok(t.x>=seat.rack.x-.2&&t.x+t.w<=seat.rack.x+seat.rack.w+.2&&t.y>=seat.rack.y-.2&&t.y+t.h<=seat.rack.y+seat.rack.h+.2,'tile escapes its public rack');
     }
    }
