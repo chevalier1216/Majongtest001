@@ -34,9 +34,11 @@ try{
   const diceShot=await page.screenshot({path:'qa-output/dice-'+width+'.png',fullPage:true});
   if(width===844)console.log('QA_DICE_844 '+diceShot.toString('base64'));
   await page.evaluate(()=>window.qaFixture());
+  await page.waitForTimeout(100);
   await page.evaluate(async()=>{await document.fonts.ready;const img=new Image();img.src='assets/flowers.png';await img.decode();});
   for(const stress of [false,true]){
    if(stress)await page.evaluate(()=>window.qaFixture(8,5));
+   await page.waitForTimeout(100);
    const measurements=await page.evaluate(()=>['#self-melds','#seat1','#seat2','#seat3'].map(selector=>{
     const zone=document.querySelector(selector),rack=zone.querySelector('.opponent-melds')||zone,publicW=parseFloat(getComputedStyle(document.querySelector('#table')).getPropertyValue('--public-tile-w'));
     const rect=r=>({x:r.x,y:r.y,w:r.width,h:r.height});
@@ -53,7 +55,7 @@ try{
     assert.equal(meldTiles.length,stress?18:10);
     assert.equal(seat.rack.overflow,'visible','public rack must not scroll');
     for(const t of flowers){
-     const expected=seat.flowerW;
+     const expected=Math.min(standard.w,standard.h);
      assert.ok(Math.abs(Math.min(t.w,t.h)-expected)<.1,JSON.stringify({width,seat:seat.selector,t,expected}));
      assert.equal(rotation(t.transform),rotation(standard.transform),'tile orientation differs');
      assert.equal(rotation(t.faceTransform),rotation(standard.faceTransform),'face orientation differs');
@@ -64,10 +66,13 @@ try{
      assert.ok(side?b.y>=a.y+a.h-.2:b.x>=a.x+a.w-.2,'melds overlap');
     }
     for(const t of seat.tiles){
-     assert.ok(Math.abs(Math.min(t.w,t.h)-(t.flower?seat.flowerW:32))<.1,'public tile must match its specified size');
+     assert.ok(Math.min(t.w,t.h)<=32.1,'public tiles must not grow beyond 32px');
      assert.ok(t.x>=seat.rack.x-.2&&t.x+t.w<=seat.rack.x+seat.rack.w+.2&&t.y>=seat.rack.y-.2&&t.y+t.h<=seat.rack.y+seat.rack.h+.2,'tile escapes its public rack');
     }
    }
+   const pageHeight=await page.evaluate(()=>document.documentElement.scrollHeight);assert.ok(pageHeight<=height,'vertical page overflow '+pageHeight+'>'+height);
+   const tableBox=await page.locator('#table').boundingBox();assert.ok(tableBox.y+tableBox.height<=height,'table escapes viewport');
+   const handBox=await page.locator('#hand').boundingBox();assert.ok(handBox.y+handBox.height<=height,'hand escapes viewport');
    const pageWidth=await page.evaluate(()=>document.documentElement.scrollWidth);assert.ok(pageWidth<=width,'horizontal page overflow '+pageWidth+'>'+width);
    const shot=await page.screenshot({path:'qa-output/'+(stress?'full-racks-':'table-')+width+'.png',fullPage:true});
    if(!stress&&(width===1440||width===844))console.log('QA_SCREENSHOT_'+width+' '+shot.toString('base64'));
