@@ -215,3 +215,8 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding-inline:12px;
 .player-area,body:has(.opening-notice:not([hidden])) .player-area{display:block;height:156px;flex:0 0 156px}
 .hand-scroll{height:96px}
 @media(max-height:600px){.player-area,body:has(.opening-notice:not([hidden])) .player-area{height:116px;flex-basis:116px}.hand-scroll{height:64px}}
+@media(orientation:landscape) and (max-height:600px){
+ #table .west,#table .east{grid-row:1/-1}
+ #table .north,#table .you-table{grid-column:2}
+ #table .self-melds{margin:auto}
+}
