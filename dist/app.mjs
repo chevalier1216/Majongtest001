@@ -1,7 +1,44 @@
+import {SaveGameService,SAVE_KEY,GAME_VERSION} from './save-game.mjs';
 import {createGame,completeOpening,declareReady,discard,respond,selfKong,winSelf,aiStep,legalActions,waits,TILE_NAMES,NAMES,canDiscard,seatWind,roundLabel} from './engine.mjs';
 import {flowerItems,WINDS,FLOWERS,TAI_TABLE,BASE,PER_TAI} from './scoring.mjs';
 const $=s=>document.querySelector(s);
 let game=createGame(Date.now(),null,{opening:true}),selected=null,timer=null,sound=false,audio=null,resultShown=false,animating=false,eventTimer=null,openingTimer=null;
+const saves=new SaveGameService({getItem:key=>window.localStorage.getItem(key),setItem:(key,value)=>window.localStorage.setItem(key,value),removeItem:key=>window.localStorage.removeItem(key)});
+let choosingSave=false,saveConflict=false;
+function persist(){
+ try{const record=saves.save(game);$('#save-status').textContent=record?'已自動儲存於此瀏覽器':'本桌已結束';}
+ catch(error){$('#save-button').textContent='存檔異常';$('#save-status').textContent=error.code==='conflict'?error.message:'本機存檔失敗，請勿關閉頁面；目前仍可繼續遊玩。';if(error.code==='conflict')pauseForConflict();}
+}
+function pauseForConflict(){
+ saveConflict=true;clearTimeout(timer);clearTimeout(eventTimer);clearTimeout(openingTimer);animating=true;
+ $('#save-conflict').showModal();
+}
+function beginFresh(){
+ try{saves.reset();}catch{}choosingSave=false;saveConflict=false;
+ $('#resume-game').close();$('#restart-dialog').close();
+ game=createGame(Date.now(),null,{opening:true});resultShown=false;startOpening();
+}
+function boot(){
+ const found=saves.load();
+ if(found.kind==='empty'){startOpening();return;}
+ choosingSave=true;render();
+ $('#resume-summary').textContent=found.kind==='saved'?`${roundLabel(found.save.game)} · 你的分數 ${found.save.game.players[0].score.toLocaleString()} · 最後儲存 ${new Date(found.save.lastSavedAt).toLocaleString('zh-TW')}`:found.message;
+ $('#continue-game').hidden=found.kind!=='saved';
+ $('#continue-game').onclick=()=>{
+  try{if(window.localStorage.getItem(SAVE_KEY)!==saves.expected){pauseForConflict();return;}}catch{}
+  $('#save-status').textContent='已載入上次本機存檔';choosingSave=false;game=found.save.game;game.events=[];resultShown=false;selected=null;animating=false;
+  $('#resume-game').close();
+  if(game.phase==='opening')startOpening();else{render();schedule();}
+ };
+ $('#resume-game').showModal();
+}
+$('#new-game').onclick=()=>$('#restart-dialog').showModal();
+$('#save-button').onclick=()=>openDialog('#save-info');
+$('#reload-save').onclick=()=>window.location.reload();
+$('#resume-game').addEventListener('cancel',e=>e.preventDefault());
+$('#save-conflict').addEventListener('cancel',e=>e.preventDefault());
+window.addEventListener?.('storage',e=>{if(e.key===SAVE_KEY&&e.newValue!==saves.expected&&!choosingSave)pauseForConflict();});
+$('#game-version').textContent=`青竹牌室 v${GAME_VERSION}`;
 function tileFace(t){
   let row,col;if(t<27){row=Math.floor(t/9)+1;col=t%9; if(col>=4)col++;}else{row=0;col=t-27;}
   return `background-position:${(31+57*col)/575*100}% ${(31+77*row)/291*100}%`;
@@ -45,12 +82,13 @@ function renderActions(){renderWaits();const response=game.phase==='response'&&!
   }if(response){$('#actions').innerHTML='';$('#reaction-actions').innerHTML=html;}else $('#actions').innerHTML=html;
 }
 function tickSound(){if(!sound)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();audio.resume();const osc=audio.createOscillator(),gain=audio.createGain();osc.connect(gain);gain.connect(audio.destination);osc.type='triangle';osc.frequency.setValueAtTime(650,audio.currentTime);osc.frequency.exponentialRampToValueAtTime(180,audio.currentTime+.055);gain.gain.setValueAtTime(.07,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+.09);osc.start();osc.stop(audio.currentTime+.1);}catch{sound=false;}}
-function schedule(){clearTimeout(timer);if(!animating&&game.phase==='discard'&&game.turn!==0&&!document.querySelector('dialog[open]'))timer=setTimeout(()=>act(()=>aiStep(game)),850);}
+function schedule(){clearTimeout(timer);if(!choosingSave&&!saveConflict&&!animating&&game.phase==='discard'&&game.turn!==0&&!document.querySelector('dialog[open]'))timer=setTimeout(()=>act(()=>aiStep(game)),850);}
 function startOpening(){
+ persist();if(saveConflict)return;
  clearTimeout(timer);clearTimeout(eventTimer);clearTimeout(openingTimer);animating=false;selected=null;$('#call-notice').hidden=true;
  const openingGame=game,{dice,total,wallSeat,firstDeal}=game.opening,notice=$('#opening-notice');
  notice.hidden=false;notice.innerHTML=`<span class="eyebrow">開局擲骰</span><div class="dice-row" aria-label="三顆骰子：${dice.join('、')}，合計 ${total} 點">${dice.map(n=>`<span class="die die-${n}" aria-hidden="true">${Array.from({length:9},(_,i)=>`<i class="${({1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]})[n].includes(i)?'pip':''}"></i>`).join('')}</span>`).join('')}</div><strong>${total} 點 · ${NAMES[game.dealer]}先抓牌</strong><p>${NAMES[game.dealer]}為東家（莊家）<br>取牌牌牆：${NAMES[wallSeat]}・${WINDS[seatWind(game,wallSeat)]}家</p><small>${firstDeal?'首局由你起算，逆時針數點定東家':'由本局莊家起算，逆時針數點定取牌牌牆'}</small>`;
- render();openingTimer=setTimeout(()=>{openingTimer=null;if(game!==openingGame||game.phase!=='opening')return;notice.hidden=true;completeOpening(game);render();schedule();},2000);
+ render();openingTimer=setTimeout(()=>{openingTimer=null;if(game!==openingGame||game.phase!=='opening')return;notice.hidden=true;completeOpening(game);persist();render();schedule();},2000);
 }
 function playEvents(events){
  clearTimeout(timer);animating=true;render();
@@ -62,7 +100,7 @@ function playEvents(events){
   eventTimer=setTimeout(next,1400);
  };next();
 }
-function act(fn){if(animating||game.phase==='opening')return;try{fn();selected=null;tickSound();if(game.phase==='opening'){startOpening();return;}const events=game.events.splice(0);if(events.length)playEvents(events);else{render();schedule();}}catch(err){$('#status').textContent=err.message;}}
+function act(fn){if(choosingSave||saveConflict||animating||game.phase==='opening')return;try{fn();persist();if(saveConflict)return;selected=null;tickSound();if(game.phase==='opening'){startOpening();return;}const events=game.events.splice(0);if(events.length)playEvents(events);else{render();schedule();}}catch(err){$('#status').textContent=err.message;}}
 function playSelected(){if(!animating&&selected!==null&&canDiscard(game,0,selected))act(()=>discard(game,0,selected));}
 $('#hand').addEventListener('click',e=>{const t=e.target.closest('[data-tile]');if(!t||t.disabled||animating)return;selected=Number(t.dataset.tile);for(const b of $('#hand').querySelectorAll('[data-tile]')){const active=Number(b.dataset.tile)===selected;b.classList.toggle('selected',active);b.setAttribute('aria-pressed',String(active));}renderActions();});
 // Keep the DOM stable between clicks so native dblclick dispatch is reliable.
@@ -89,9 +127,10 @@ function showResult(){const r=game.result;
 
 $('#review-table').onclick=()=>$('#result').close();
 $('#next-round').onclick=()=>{$('#result').close();act(()=>{game=createGame(Date.now(),game.matchOver?null:game,{opening:true});resultShown=false;});};
-$('#confirm-restart').onclick=()=>{$('#restart-dialog').close();act(()=>{game=createGame(Date.now(),null,{opening:true});resultShown=false;});};
+$('#confirm-restart').onclick=beginFresh;
 $('#tai-table').innerHTML=TAI_TABLE.map(([name,tai])=>`<tr><td>${name}</td><td>${tai}</td></tr>`).join('');
-startOpening();
+boot();
+document.querySelector('#boot-status')?.remove();
 // Optional browser agent tools: expose only public table state and legal human actions.
 const toolContext=document.modelContext;
 if(toolContext?.registerTool){

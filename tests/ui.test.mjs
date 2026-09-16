@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import * as engine from '../dist/engine.mjs';
+import * as saving from '../dist/save-game.mjs';
 import * as scoring from '../dist/scoring.mjs';
 // Execute the actual UI against a minimal HTML-backed host and deterministic clock.
 // This verifies rendering and interaction gates; it is not a browser layout test.
 function ui(finishDice=true){
- const html=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8'),nodes=new Map(),clock=new Map();let next=0;
- for(const [,id] of html.matchAll(/id="([^"]+)"/g))nodes.set('#'+id,{innerHTML:'',textContent:'',hidden:id==='call-notice',classList:{toggle(){}},addEventListener(){},querySelectorAll(){return[];},setAttribute(){},showModal(){this.open=true;},close(){this.open=false;}});
+ const html=readFileSync(new URL('../dist/index.html',import.meta.url),'utf8'),nodes=new Map(),clock=new Map(),storage=new Map();let next=0;
+ for(const [,id] of html.matchAll(/id="([^"]+)"/g))nodes.set('#'+id,{innerHTML:'',textContent:'',hidden:id==='call-notice',classList:{toggle(){}},addEventListener(){},querySelectorAll(){return[];},setAttribute(){},remove(){},showModal(){this.open=true;},close(){this.open=false;}});
  for(let s=0;s<4;s++)nodes.set(`[data-seat="${s}"]`,{textContent:'',classList:{toggle(){}}});
  const document={querySelector(s){if(s==='dialog[open]')return [...nodes.values()].find(n=>n.open)||null;if(!nodes.has(s))throw new Error('Missing HTML target '+s);return nodes.get(s);},querySelectorAll(){return[];}};
- const context=vm.createContext({...engine,...scoring,Date:class extends Date{static now(){return 5;}},document,navigator:{},window:{},console,setTimeout:(fn,ms)=>{const id=++next;clock.set(id,{fn,ms});return id;},clearTimeout:id=>clock.delete(id)});
+ const context=vm.createContext({...engine,...scoring,...saving,Date:class extends Date{static now(){return 5;}},document,navigator:{},window:{localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}},console,setTimeout:(fn,ms)=>{const id=++next;clock.set(id,{fn,ms});return id;},clearTimeout:id=>clock.delete(id)});
  const code=readFileSync(new URL('../dist/app.mjs',import.meta.url),'utf8').replace(/^import .*;\n/gm,'');vm.runInContext(code,context);
  if(finishDice){const [id,timer]=[...clock].find(([,t])=>t.ms===2000);clock.delete(id);timer.fn();}
  return{context,nodes,clock,run:code=>vm.runInContext(code,context)};
