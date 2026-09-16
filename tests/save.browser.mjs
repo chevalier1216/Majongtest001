@@ -16,6 +16,7 @@ try{
   let raw;const service=new SaveGameService({getItem:()=>raw??null,setItem:(k,v)=>raw=v,removeItem:()=>raw=null});const game=createGame(5);service.save(game);
   await page.goto(url);await page.evaluate(([key,raw])=>localStorage.setItem(key,raw),[SAVE_KEY,raw]);await page.reload();
   await page.getByRole('button',{name:'繼續上次牌局',exact:true}).waitFor();
+  const resumeShot=await page.screenshot({path:`qa-output/resume-${viewport.width}.png`});if(viewport.width===844)console.log('QA_RESUME_844 '+resumeShot.toString('base64'));
   assert.equal(await page.locator('#opening-notice').isVisible(),false);
   await page.waitForTimeout(1000);assert.equal(await page.evaluate(k=>localStorage.getItem(k),SAVE_KEY),raw);
   await page.getByRole('button',{name:'繼續上次牌局',exact:true}).click();

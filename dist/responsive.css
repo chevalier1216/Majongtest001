@@ -224,3 +224,5 @@ main{flex:1;min-height:0;display:flex;flex-direction:column;padding-inline:12px;
 #boot-status{position:fixed;inset:0;z-index:100;background:#101f1c;display:grid;place-content:center;padding:24px;color:#e0c18a;text-align:center}
 .save-note{font-size:12px;margin:20px 0 0}#save-status{border:1px solid #d5b67d44;padding:12px;border-radius:6px;color:#edd093}#game-version{color:#a1b5a9}
 @media(max-height:600px){#resume-game h2{margin:6px 0;font-size:23px}#resume-game p{margin-bottom:10px}#resume-game .full{margin-top:10px}}
+
+[hidden]{display:none!important}

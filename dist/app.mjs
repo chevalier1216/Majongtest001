@@ -6,7 +6,7 @@ let game=createGame(Date.now(),null,{opening:true}),selected=null,timer=null,sou
 const saves=new SaveGameService({getItem:key=>window.localStorage.getItem(key),setItem:(key,value)=>window.localStorage.setItem(key,value),removeItem:key=>window.localStorage.removeItem(key)});
 let choosingSave=false,saveConflict=false;
 function persist(){
- try{const record=saves.save(game);$('#save-status').textContent=record?'已自動儲存於此瀏覽器':'本桌已結束';}
+ try{const record=saves.save(game);$('#save-button').textContent='存檔';$('#save-status').textContent=record?'已自動儲存於此瀏覽器':'本桌已結束';}
  catch(error){$('#save-button').textContent='存檔異常';$('#save-status').textContent=error.code==='conflict'?error.message:'本機存檔失敗，請勿關閉頁面；目前仍可繼續遊玩。';if(error.code==='conflict')pauseForConflict();}
 }
 function pauseForConflict(){
@@ -25,6 +25,7 @@ function boot(){
  $('#resume-summary').textContent=found.kind==='saved'?`${roundLabel(found.save.game)} · 你的分數 ${found.save.game.players[0].score.toLocaleString()} · 最後儲存 ${new Date(found.save.lastSavedAt).toLocaleString('zh-TW')}`:found.message;
  $('#continue-game').hidden=found.kind!=='saved';
  $('#continue-game').onclick=()=>{
+  if(found.kind!=='saved')return;
   try{if(window.localStorage.getItem(SAVE_KEY)!==saves.expected){pauseForConflict();return;}}catch{}
   $('#save-status').textContent='已載入上次本機存檔';choosingSave=false;game=found.save.game;game.events=[];resultShown=false;selected=null;animating=false;
   $('#resume-game').close();
