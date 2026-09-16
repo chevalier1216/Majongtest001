@@ -4,3 +4,4 @@ node_modules/
 *.tar.gz
 
 site/
+qa-output/

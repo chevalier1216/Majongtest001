@@ -1,47 +1,63 @@
-name: Publish mahjong to GitHub Pages
+name: Verify and publish mahjong
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'fix/**', 'feature/**', 'work/**']
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: mahjong-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  verify:
+    name: verify
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Verify game
-        run: node --test tests/*.test.mjs
-      - name: Build production release
-        run: node scripts/build.mjs
       - name: Install browser for layout checks
         run: |
           npm install --no-save --package-lock=false playwright@1.58.2
           npx playwright install --with-deps chromium
           sudo apt-get install -y fonts-noto-cjk
-      - name: Check rendered tile sizes and orientations
-        run: |
-          node tests/layout.browser.mjs
-          node tests/save.browser.mjs
+      - name: Full release preflight
+        run: node scripts/preflight.mjs
       - name: Save layout screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: mahjong-layout
           path: qa-output
+      - name: Save verified production build
+        uses: actions/upload-artifact@v4
+        with:
+          name: verified-site-${{ github.sha }}
+          path: site
+          if-no-files-found: error
+
+  deploy:
+    needs: verify
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download the verified build
+        uses: actions/download-artifact@v4
+        with:
+          name: verified-site-${{ github.sha }}
+          path: site
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload game

@@ -1,3 +1,4 @@
+import {browserOptions} from './browser-options.mjs';
 import {chromium} from 'playwright';
 import {createServer} from 'node:http';
 import {readFile,mkdtemp,rm} from 'node:fs/promises';
@@ -7,7 +8,7 @@ import assert from 'node:assert/strict';
 import {createGame,completeOpening} from '../dist/engine.mjs';
 import {SaveGameService,SAVE_KEY} from '../dist/save-game.mjs';
 const server=createServer(async(req,res)=>{try{const path=new URL(req.url,'http://localhost').pathname;if(path.includes('..'))throw Error();const file=join('site',path==='/'?'index.html':path);res.setHeader('Content-Type',({'.html':'text/html','.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.png':'image/png'})[extname(file)]||'application/octet-stream');res.end(await readFile(file));}catch{res.writeHead(404).end();}});
-await new Promise(r=>server.listen(4174,'127.0.0.1',r));const browser=await chromium.launch();
+await new Promise(r=>server.listen(4174,'127.0.0.1',r));const browser=await chromium.launch(browserOptions);
 const url='http://127.0.0.1:4174/';
 try{
  for(const viewport of [{width:1440,height:900},{width:844,height:390}]){
@@ -36,8 +37,8 @@ try{
  // Production service worker installs and can reopen the game offline.
  const ctx=await browser.newContext();const page=await ctx.newPage();await page.goto(url);await page.evaluate(()=>navigator.serviceWorker.ready);await page.reload();await page.waitForTimeout(300);await ctx.setOffline(true);await page.reload();await page.getByRole('button',{name:'繼續上次牌局',exact:true}).waitFor();await page.getByRole('button',{name:'繼續上次牌局',exact:true}).click();assert.equal(await page.locator('#boot-status').count(),0);await ctx.close();
  const profile=await mkdtemp(join(tmpdir(),'qingzhu-save-'));
- let persistent=await chromium.launchPersistentContext(profile,{headless:true});let tab=await persistent.newPage();await tab.goto(url);await tab.waitForFunction(k=>localStorage.getItem(k),SAVE_KEY);await persistent.close();
- persistent=await chromium.launchPersistentContext(profile,{headless:true});tab=await persistent.newPage();await tab.goto(url);await tab.getByRole('button',{name:'繼續上次牌局',exact:true}).waitFor();await persistent.close();await rm(profile,{recursive:true,force:true});
+ let persistent=await chromium.launchPersistentContext(profile,{...browserOptions,headless:true});let tab=await persistent.newPage();await tab.goto(url);await tab.waitForFunction(k=>localStorage.getItem(k),SAVE_KEY);await persistent.close();
+ persistent=await chromium.launchPersistentContext(profile,{...browserOptions,headless:true});tab=await persistent.newPage();await tab.goto(url);await tab.getByRole('button',{name:'繼續上次牌局',exact:true}).waitFor();await persistent.close();await rm(profile,{recursive:true,force:true});
  const invalid=await browser.newContext({serviceWorkers:'block'});const bad=await invalid.newPage();await bad.goto(url);await bad.evaluate(k=>localStorage.setItem(k,'{bad'),SAVE_KEY);await bad.reload();await bad.locator('#resume-game').waitFor({state:'visible'});assert.equal(await bad.locator('#continue-game').isVisible(),false);assert.equal(await bad.evaluate(k=>localStorage.getItem(k),SAVE_KEY),'{bad');await invalid.close();
  console.log('SAVE_BROWSER_OK reload reopen new-game cancel conflict desktop landscape offline');
 }finally{await browser.close();server.close();}

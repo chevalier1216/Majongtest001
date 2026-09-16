@@ -1,3 +1,4 @@
+import {browserOptions} from './browser-options.mjs';
 import { chromium } from 'playwright';
 import { readFile, mkdir } from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -18,7 +19,7 @@ await new Promise(resolve=>server.listen(4173,'127.0.0.1',resolve));
 await mkdir('qa-output',{recursive:true});
 const fixture="\nclearTimeout(openingTimer);\nwindow.qaFixture=(count=2,groups=3)=>{\n clearTimeout(timer);clearTimeout(eventTimer);clearTimeout(openingTimer);animating=false;\n if(game.phase==='opening')completeOpening(game);\n game.phase='discard';game.turn=0;document.querySelector('#opening-notice').hidden=true;\n for(let s=0;s<4;s++){\n  const p=game.players[s];p.ready=false;\n  p.flowers=Array.from({length:count},(_,i)=>({id:300+s*10+i,type:34+i}));\n  p.melds=Array.from({length:groups},(_,g)=>({kind:g===0?'chi':g===1?'pong':'kong',tiles:Array.from({length:g<2?3:4},(_,i)=>({id:500+s*100+g*4+i,type:g===0?i:g===1?4:18+g}))}));\n  p.hand=p.hand.slice(0,16-3*groups+(s===0?1:0));p.drawn=s===0?p.hand.at(-1)?.id:null;\n  p.discards=Array.from({length:12},(_,i)=>({id:1000+s*20+i,type:(s*7+i)%34}));\n }\n render();\n};\nwindow.qaReady=()=>{\n clearTimeout(timer);clearTimeout(eventTimer);animating=false;document.querySelector('#call-notice').hidden=true;\n game=createGame(5);game.discardCount=8;game.turn=0;\n game.players[0].hand=[0,1,2,3,4,5,9,10,11,18,19,20,27,27,27,31,30].map((type,id)=>({type,id}));\n game.players[0].melds=[];game.players[0].flowers=[];game.players[0].drawn=16;selected=null;render();\n};\nwindow.qaReadyDraw=()=>{\n clearTimeout(timer);clearTimeout(eventTimer);animating=false;document.querySelector('#call-notice').hidden=true;\n game.phase='discard';game.turn=0;game.players[0].hand.push({type:0,id:999});game.players[0].drawn=999;render();\n};\nwindow.qaBankrupt=()=>{\n clearTimeout(timer);clearTimeout(eventTimer);animating=false;game=createGame(5);game.discardCount=8;\n const p=game.players[0];p.hand=[0,1,2,3,4,5,9,10,11,18,19,20,27,27,27,31,31].map((type,id)=>({type,id}));p.melds=[];p.flowers=[];p.drawn=16;p.ready=true;\n game.players[1].score=1;winSelf(game,0);game.events=[];resultShown=false;render();\n};";
 
-const browser=await chromium.launch();
+const browser=await chromium.launch(browserOptions);
 try{
  for(const [width,height] of [[1440,900],[1024,768],[844,390]]){
   const page=await browser.newPage({viewport:{width,height},deviceScaleFactor:1,serviceWorkers:'block'});
