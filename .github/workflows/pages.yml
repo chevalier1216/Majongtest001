@@ -3,6 +3,8 @@ name: Verify and publish mahjong
 on:
   push:
     branches: [main, 'fix/**', 'feature/**', 'work/**']
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
